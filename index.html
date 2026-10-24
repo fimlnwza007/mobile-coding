@@ -4,164 +4,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>เป่ากบ 3D - Third Person</title>
-
+<title>เป่ากบ 3D</title>
 <style>
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  overflow: hidden;
-  background: #172019;
-  color: white;
-  font-family: system-ui, sans-serif;
-}
-
-canvas {
-  display: block;
-  touch-action: none;
-}
-
-#hud {
-  position: fixed;
-  inset: 0;
-  padding: 12px;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.panel {
-  background: #142019dd;
-  border: 1px solid #ffffff24;
-  border-radius: 14px;
-  padding: 12px;
-  backdrop-filter: blur(8px);
-}
-
-.top {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-h2 { font-size: 18px; margin: 0 0 5px; }
-.small { font-size: 12px; color: #c7d2ca; }
-#turn { font-weight: bold; font-size: 16px; }
-#status { font-size: 13px; margin-top: 6px; }
-
-.bottom {
-  display: flex;
-  justify-content: center;
-}
-
-.controls {
-  width: min(440px, 100%);
-  pointer-events: auto;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-button {
-  border: 0;
-  border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 14px;
-  font-weight: bold;
-  background: #e5eee7;
-  color: #152219;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-button.primary {
-  background: #ffc15d;
-}
-
-button:disabled { opacity: .5; }
-
-#meter {
-  height: 9px;
-  background: #36453a;
-  border-radius: 10px;
-  margin-top: 10px;
-  overflow: hidden;
-}
-
-#bar {
-  width: 0%;
-  height: 100%;
-  background: #72ed9a;
-}
-
-#powerText { font-size: 12px; margin-top: 5px; }
-
-#start, #resultScreen {
-  position: fixed;
-  inset: 0;
-  background: #000b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 10;
-}
-
-.modal {
-  width: min(420px, 100%);
-  padding: 24px;
-  text-align: center;
-  border-radius: 18px;
-  background: #202c23;
-  border: 1px solid #526456;
-}
-
-.modal p {
-  font-size: 14px;
-  line-height: 1.8;
-  color: #d5ded7;
-}
-
-.hidden { display: none !important; }
-
-#aimHint {
-  text-align: center;
-  margin-top: 7px;
-  font-size: 12px;
-  color: #e4d4a5;
-}
-
-@media(max-width: 500px) {
-  #hud { padding: 8px; }
-  .panel { padding: 10px; }
-  h2 { font-size: 16px; }
-  button { padding: 10px; font-size: 12px; }
-}
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#18231c;color:white;font-family:system-ui,sans-serif}
+canvas{display:block;touch-action:none}
+#hud{position:fixed;inset:0;padding:12px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+.panel{background:#142019e8;border:1px solid #ffffff26;border-radius:14px;padding:12px;backdrop-filter:blur(8px)}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+h2{font-size:18px;margin:0 0 5px}
+.small{font-size:12px;color:#c7d2ca}
+#turn{font-weight:bold;font-size:16px}
+#status{font-size:13px;margin-top:6px}
+.bottom{display:flex;justify-content:center}
+.controls{width:min(450px,100%);pointer-events:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button{border:0;border-radius:10px;padding:11px 13px;font-size:13px;font-weight:bold;background:#e5eee7;color:#152219;cursor:pointer;touch-action:manipulation}
+button.primary{background:#ffc15d}
+button:disabled{opacity:.5}
+#meter{height:9px;background:#36453a;border-radius:10px;margin-top:10px;overflow:hidden}
+#bar{width:0%;height:100%;background:#72ed9a}
+#powerText,#aimHint{font-size:12px;margin-top:6px}
+#aimHint{text-align:center;color:#e4d4a5}
+.overlay{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal{width:min(420px,100%);padding:24px;text-align:center;border-radius:18px;background:#202c23;border:1px solid #526456}
+.modal p{font-size:14px;line-height:1.8;color:#d5ded7}
+.hidden{display:none!important}
+@media(max-width:500px){#hud{padding:8px}.panel{padding:10px}h2{font-size:16px}button{padding:10px;font-size:12px}}
 </style>
 </head>
-
 <body>
 
-<div id="start">
+<div id="start" class="overlay">
   <div class="modal">
     <h2>🐸 เป่ากบ 3D</h2>
     <p>
-      <b>ลากหน้าจอ</b> เพื่อหมุนกล้องและเล็งทิศทาง<br>
-      <b>เป่าไมค์</b> เพื่อยิงหนังยาง<br>
-      กล้องจะอยู่ที่เดิมระหว่างหนังยางพุ่ง<br>
-      เมื่อหนังยางหยุด กล้องจึงย้ายไปยังผู้เล่นอีกคน
+      ผู้เล่นละ 1 วง สลับตากันเล่น<br>
+      ลากหน้าจอเพื่อหมุนกล้องและเล็ง<br>
+      เป่าไมค์ค้างเพื่อสะสมแรง แล้วหยุดเป่าเพื่อยิง<br>
+      หรือใช้ปุ่มยิงแทนไมค์<br><br>
+      กล้องหมุนดูสนามได้ระหว่างหนังยางพุ่ง โดยไม่ติดตามหนังยาง
     </p>
     <button class="primary" id="startBtn">เริ่มเล่น</button>
   </div>
 </div>
 
-<div id="resultScreen" class="hidden">
+<div id="resultScreen" class="overlay hidden">
   <div class="modal">
     <h2>🏆 จบเกม!</h2>
     <p id="winnerText"></p>
@@ -183,7 +71,6 @@ button:disabled { opacity: .5; }
       <b style="color:#64caff">● สีฟ้า</b>
     </div>
   </div>
-
   <div class="bottom">
     <div class="panel controls">
       <div class="row">
@@ -204,20 +91,20 @@ import * as THREE from
 
 const $ = id => document.getElementById(id);
 
-// ==========================================
-// Scene
-// ==========================================
+// ==================================================
+// SCENE
+// ==================================================
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x18231c);
-scene.fog = new THREE.Fog(0x18231c, 16, 35);
+scene.fog = new THREE.Fog(0x18231c, 18, 35);
 
 const camera = new THREE.PerspectiveCamera(
-  50, window.innerWidth / window.innerHeight, 0.1, 100
+  50, innerWidth / innerHeight, 0.1, 100
 );
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -231,19 +118,18 @@ sunlight.castShadow = true;
 sunlight.shadow.mapSize.set(1024, 1024);
 scene.add(sunlight);
 
-// ==========================================
-// Wooden board
-// ==========================================
+// ==================================================
+// BOARD
+// ==================================================
 
-const W = 8;
-const D = 10;
+const BOARD_W = 8;
+const BOARD_D = 10;
+const RING_R = 0.43;
+const GROUND_Y = 0.12;
 
 const board = new THREE.Mesh(
-  new THREE.BoxGeometry(W, 0.35, D),
-  new THREE.MeshStandardMaterial({
-    color: 0x98633b,
-    roughness: 0.8
-  })
+  new THREE.BoxGeometry(BOARD_W, 0.35, BOARD_D),
+  new THREE.MeshStandardMaterial({color:0x98633b, roughness:0.8})
 );
 board.position.y = -0.19;
 board.receiveShadow = true;
@@ -252,83 +138,78 @@ scene.add(board);
 
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(100, 100),
-  new THREE.MeshStandardMaterial({ color: 0x29352b })
+  new THREE.MeshStandardMaterial({color:0x29352b})
 );
 floor.rotation.x = -Math.PI / 2;
 floor.position.y = -0.39;
 floor.receiveShadow = true;
 scene.add(floor);
 
-const woodLineMat = new THREE.MeshStandardMaterial({
-  color: 0x6c4327
-});
-
-for (let i = 0; i < 18; i++) {
+for(let i=0;i<18;i++){
   const line = new THREE.Mesh(
     new THREE.BoxGeometry(7.85, 0.008, 0.018),
-    woodLineMat
+    new THREE.MeshStandardMaterial({color:0x6c4327})
   );
-  line.position.set(0, 0.01, -4.6 + i * 0.54);
+  line.position.set(0, 0.01, -4.6+i*0.54);
   scene.add(line);
 }
 
-const edgeMat = new THREE.MeshStandardMaterial({ color: 0x4c2f1d });
+const edgeMat = new THREE.MeshStandardMaterial({color:0x4c2f1d});
 
-function edge(w, h, d, x, y, z) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d), edgeMat
-  );
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  scene.add(m);
+function addEdge(w,h,d,x,y,z){
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),edgeMat);
+  mesh.position.set(x,y,z);
+  mesh.castShadow = true;
+  scene.add(mesh);
 }
 
-edge(8.2, 0.18, 0.18, 0, -0.05, -5.05);
-edge(8.2, 0.18, 0.18, 0, -0.05, 5.05);
-edge(0.18, 0.18, 10, -4.05, -0.05, 0);
-edge(0.18, 0.18, 10, 4.05, -0.05, 0);
+addEdge(8.2,0.18,0.18,0,-0.05,-5.05);
+addEdge(8.2,0.18,0.18,0,-0.05,5.05);
+addEdge(0.18,0.18,10,-4.05,-0.05,0);
+addEdge(0.18,0.18,10,4.05,-0.05,0);
 
-// ==========================================
-// Two rubber bands only
-// ==========================================
+// ==================================================
+// RUBBER BANDS: ALWAYS TWO
+// ==================================================
 
 const bands = [];
-const R = 0.43;
 
-function makeBand(owner, x, z) {
-  const color = owner === 0 ? 0xff873f : 0x5bc7ff;
+function createBand(owner,x,z){
+  const color = owner===0 ? 0xff873f : 0x5bc7ff;
 
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(R, 0.09, 14, 48),
+    new THREE.TorusGeometry(RING_R,0.09,14,48),
     new THREE.MeshStandardMaterial({
       color,
-      roughness: 0.45,
-      emissive: color,
-      emissiveIntensity: 0.08
+      roughness:0.4,
+      emissive:color,
+      emissiveIntensity:0.08
     })
   );
 
-  ring.rotation.x = Math.PI / 2;
-  ring.position.set(x, 0.12, z);
+  ring.rotation.x = Math.PI/2;
+  ring.position.set(x,GROUND_Y,z);
   ring.castShadow = true;
+
   ring.userData.owner = owner;
   ring.userData.velocity = new THREE.Vector3();
+  ring.userData.vy = 0;
   ring.userData.moving = false;
+  ring.userData.hadImpact = false;
 
   scene.add(ring);
 
   const halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.55, 0.63, 48),
+    new THREE.RingGeometry(0.55,0.63,48),
     new THREE.MeshBasicMaterial({
       color,
-      transparent: true,
-      opacity: 0.25,
-      side: THREE.DoubleSide
+      transparent:true,
+      opacity:0.25,
+      side:THREE.DoubleSide
     })
   );
-
-  halo.rotation.x = -Math.PI / 2;
-  halo.position.set(x, 0.025, z);
+  halo.rotation.x = -Math.PI/2;
+  halo.position.set(x,0.025,z);
   scene.add(halo);
 
   ring.userData.halo = halo;
@@ -336,135 +217,127 @@ function makeBand(owner, x, z) {
   return ring;
 }
 
-// ==========================================
-// Third-person camera aiming
-// ==========================================
-
-// มุมกล้องที่หมุนได้ระหว่างเล็ง
-let yaw = 0;
-let pitch = 0.52;
-let cameraDistance = 4.2;
-
-const MIN_PITCH = 0.12;
-const MAX_PITCH = 1.0;
+// ==================================================
+// CAMERA AND TURN STATE
+// ==================================================
 
 let current = 0;
 let activeBand = null;
+let shotBand = null;
+let targetBand = null;
 
 let phase = 'aim';
-// aim = เล็ง
-// flying = หนังยางกำลังพุ่ง
-// switching = กำลังเปลี่ยนตา
-// ended = จบเกม
+// aim, flying, switching, ended
 
+let yaw = Math.PI;
+let pitch = 0.48;
+const cameraDistance = 4.3;
+const MIN_PITCH = 0.12;
+const MAX_PITCH = 1.05;
+
+let cameraAnchor = new THREE.Vector3();
 let power = 0;
 let micLevel = 0;
-let shotPower = 0;
 let gameStarted = false;
-let micEnabled = false;
+let pointerDown = false;
+let lastX = 0;
+let lastY = 0;
+let impactHandled = false;
+let shotLanded = false;
+let flightTime = 0;
 
-function getCameraPosition(target, y, angle, distance) {
+function forwardFromYaw(){
   return new THREE.Vector3(
-    target.x + Math.sin(angle) * distance,
-    y + Math.sin(pitch) * distance,
-    target.z + Math.cos(angle) * distance
+    -Math.sin(yaw),
+    0,
+    -Math.cos(yaw)
+  ).normalize();
+}
+
+function getCameraPosition(anchor){
+  return new THREE.Vector3(
+    anchor.x + Math.sin(yaw)*cameraDistance,
+    anchor.y + Math.sin(pitch)*cameraDistance,
+    anchor.z + Math.cos(yaw)*cameraDistance
   );
 }
 
-function positionCameraForTurn() {
-  if (!activeBand) return;
+function updateAimCamera(){
+  if(!activeBand || phase!=='aim') return;
 
-  // กล้องเริ่มด้านหลังหนังยางที่กำลังควบคุม
-  const b = activeBand.position;
+  const p = activeBand.position.clone();
+  camera.position.copy(getCameraPosition(p));
 
-  // ผู้เล่น 1 เริ่มจากด้านล่างกระดาน
-  // ผู้เล่น 2 เริ่มจากด้านบนกระดาน
-  yaw = current === 0 ? Math.PI : 0;
-  pitch = 0.52;
-
-  camera.position.copy(
-    getCameraPosition(b, 0.12, yaw, cameraDistance)
-  );
-
-  camera.lookAt(b.x, 0.1, b.z);
+  const forward = forwardFromYaw();
+  const look = p.clone().addScaledVector(forward,3);
+  look.y = p.y + 0.1;
+  camera.lookAt(look);
 }
 
-// ==========================================
-// Aim line
-// ==========================================
+function updateFlightCamera(){
+  // cameraAnchor remains fixed at the firing position.
+  // Camera can rotate around it but never follows the moving ring.
+  camera.position.copy(getCameraPosition(cameraAnchor));
+
+  const forward = forwardFromYaw();
+  const look = cameraAnchor.clone().addScaledVector(forward,3);
+  look.y = cameraAnchor.y + 0.1;
+  camera.lookAt(look);
+}
+
+// ==================================================
+// AIM GUIDE
+// ==================================================
 
 let aimLine = null;
 
-function updateAimLine() {
-  if (aimLine) {
+function updateAimLine(){
+  if(aimLine){
     scene.remove(aimLine);
     aimLine.geometry.dispose();
+    aimLine.material.dispose();
     aimLine = null;
   }
 
-  if (phase !== 'aim' || !activeBand) return;
+  if(phase!=='aim' || !activeBand) return;
 
-  const origin = activeBand.position.clone();
-  origin.y = 0.22;
+  const start = activeBand.position.clone();
+  start.y = 0.22;
 
-  // ทิศทางเล็งตามทิศที่กล้องมอง
-  const direction = new THREE.Vector3();
-  camera.getWorldDirection(direction);
-  direction.y = 0;
+  const end = start.clone().addScaledVector(forwardFromYaw(),2.5);
 
-  if (direction.lengthSq() < 0.001) return;
-  direction.normalize();
-
-  const end = origin.clone().addScaledVector(direction, 2.5);
-  end.y = 0.22;
-
-  const geometry = new THREE.BufferGeometry().setFromPoints([
-    origin, end
-  ]);
-
+  const geo = new THREE.BufferGeometry().setFromPoints([start,end]);
   aimLine = new THREE.Line(
-    geometry,
-    new THREE.LineBasicMaterial({ color: 0xffffff })
+    geo,
+    new THREE.LineBasicMaterial({color:0xffffff})
   );
   scene.add(aimLine);
 }
 
-// ==========================================
-// Touch / mouse camera controls
-// ==========================================
+// ==================================================
+// CAMERA INPUT: DRAG TO ROTATE AT ANY TIME
+// ==================================================
 
-let pointerDown = false;
-let lastX = 0;
-let lastY = 0;
-let pointerMoved = false;
-
-renderer.domElement.addEventListener('pointerdown', e => {
-  if (!gameStarted || phase !== 'aim') return;
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if(!gameStarted || (phase!=='aim' && phase!=='flying')) return;
 
   pointerDown = true;
-  pointerMoved = false;
   lastX = e.clientX;
   lastY = e.clientY;
 
   renderer.domElement.setPointerCapture(e.pointerId);
 });
 
-renderer.domElement.addEventListener('pointermove', e => {
-  if (!pointerDown || phase !== 'aim') return;
+renderer.domElement.addEventListener('pointermove',e=>{
+  if(!pointerDown) return;
+  if(phase!=='aim' && phase!=='flying') return;
 
-  const dx = e.clientX - lastX;
-  const dy = e.clientY - lastY;
+  const dx = e.clientX-lastX;
+  const dy = e.clientY-lastY;
 
-  if (Math.abs(dx) + Math.abs(dy) > 1) {
-    pointerMoved = true;
-  }
-
-  // ลากซ้าย-ขวา หมุนรอบหนังยาง
-  yaw -= dx * 0.008;
-
-  // ลากขึ้น-ลง ปรับมุมกล้อง
+  yaw -= dx*0.008;
   pitch = THREE.MathUtils.clamp(
-    pitch + dy * 0.006,
+    pitch+dy*0.006,
     MIN_PITCH,
     MAX_PITCH
   );
@@ -472,268 +345,374 @@ renderer.domElement.addEventListener('pointermove', e => {
   lastX = e.clientX;
   lastY = e.clientY;
 
-  updateAimCamera();
+  if(phase==='aim') updateAimCamera();
+  if(phase==='flying') updateFlightCamera();
 });
 
-renderer.domElement.addEventListener('pointerup', () => {
+renderer.domElement.addEventListener('pointerup',()=>{
+  pointerDown = false;
+});
+renderer.domElement.addEventListener('pointercancel',()=>{
   pointerDown = false;
 });
 
-renderer.domElement.addEventListener('pointercancel', () => {
-  pointerDown = false;
-});
+// ==================================================
+// SHOOT
+// ==================================================
 
-function updateAimCamera() {
-  if (!activeBand || phase !== 'aim') return;
+function shoot(){
+  if(!gameStarted || phase!=='aim' || !activeBand) return;
 
-  const b = activeBand.position;
+  const direction = forwardFromYaw();
+  const finalPower = Math.max(0.2,power);
+  const speed = 3.2+finalPower*8.5;
 
-  camera.position.copy(
-    getCameraPosition(b, 0.12, yaw, cameraDistance)
-  );
+  shotBand = activeBand;
+  targetBand = bands.find(b=>b!==shotBand);
 
-  camera.lookAt(b.x, 0.12, b.z);
-}
-
-// ==========================================
-// Launch rubber band
-// ==========================================
-
-function shoot() {
-  if (!gameStarted || phase !== 'aim' || !activeBand) return;
-
-  const direction = new THREE.Vector3();
-  camera.getWorldDirection(direction);
-
-  // หนังยางวิ่งบนพื้นกระดาน
-  direction.y = 0;
-
-  if (direction.lengthSq() < 0.001) return;
-  direction.normalize();
-
-  // เสียงไมค์ช่วยเพิ่มแรง
-  const finalPower = Math.max(power, 0.2);
-  const speed = 3.0 + finalPower * 8.5;
-
-  activeBand.userData.velocity.set(
-    direction.x * speed,
+  shotBand.userData.velocity.set(
+    direction.x*speed,
     0,
-    direction.z * speed
+    direction.z*speed
   );
 
-  activeBand.userData.moving = true;
+  // Initial upward impulse creates an arc.
+  shotBand.userData.vy = 2.0+finalPower*2.5;
+  shotBand.userData.moving = true;
+  shotBand.userData.hadImpact = false;
 
-  // สำคัญ: ไม่เรียก updateAimCamera อีกระหว่างบิน
-  // ตำแหน่งและมุมกล้องจะค้างอยู่ตรงจุดยิง
-  phase = 'flying';
-  shotPower = finalPower;
+  targetBand.userData.moving = false;
+  targetBand.userData.vy = targetBand.userData.vy || 0;
+
+  // Freeze the camera's orbit center at the launch point.
+  cameraAnchor.copy(shotBand.position);
+  impactHandled = false;
+  shotLanded = false;
+  flightTime = 0;
   pointerDown = false;
+  phase = 'flying';
 
-  $('status').textContent = 'หนังยางกำลังพุ่ง...';
-  $('aimHint').textContent = 'กล้องค้างที่จุดยิง ไม่ตามหนังยาง';
+  $('status').textContent = 'หนังยางกำลังพุ่ง!';
+  $('aimHint').textContent = 'ลากเพื่อหมุนกล้องได้ กล้องไม่ตามหนังยาง';
   $('shootBtn').disabled = true;
+
+  updateFlightCamera();
 }
 
-// ==========================================
-// Physics
-// ==========================================
+// ==================================================
+// IMPACT / RUBBER BAND PHYSICS
+// ==================================================
 
-function updatePhysics(dt) {
-  if (phase !== 'flying') return;
-
-  const b = activeBand;
+function bounceFromEdge(b){
   const v = b.userData.velocity;
+  const maxX = BOARD_W/2-RING_R-0.2;
+  const maxZ = BOARD_D/2-RING_R-0.2;
 
-  b.position.x += v.x * dt;
-  b.position.z += v.z * dt;
+  if(b.position.x < -maxX){
+    b.position.x=-maxX;
+    v.x=Math.abs(v.x)*0.55;
+  }
+  if(b.position.x > maxX){
+    b.position.x=maxX;
+    v.x=-Math.abs(v.x)*0.55;
+  }
+  if(b.position.z < -maxZ){
+    b.position.z=-maxZ;
+    v.z=Math.abs(v.z)*0.55;
+  }
+  if(b.position.z > maxZ){
+    b.position.z=maxZ;
+    v.z=-Math.abs(v.z)*0.55;
+  }
+}
 
-  // แรงเสียดทาน
-  v.multiplyScalar(Math.pow(0.985, dt * 60));
+function updateVertical(b,dt){
+  b.userData.vy -= 9.8*dt;
+  b.position.y += b.userData.vy*dt;
 
-  const maxX = W / 2 - R - 0.2;
-  const maxZ = D / 2 - R - 0.2;
+  if(b.position.y <= GROUND_Y){
+    b.position.y = GROUND_Y;
 
-  if (b.position.x < -maxX) {
-    b.position.x = -maxX;
-    v.x = Math.abs(v.x) * 0.5;
+    if(b.userData.vy < -0.8){
+      b.userData.vy = -b.userData.vy*0.24;
+    }else{
+      b.userData.vy = 0;
+    }
+  }
+}
+
+function collideBands(){
+  if(impactHandled || !shotBand || !targetBand) return;
+
+  const a = shotBand;
+  const b = targetBand;
+
+  const dx = b.position.x-a.position.x;
+  const dz = b.position.z-a.position.z;
+  const dist = Math.hypot(dx,dz);
+
+  // Contact between the two rubber bands.
+  if(dist > 0.78) return;
+
+  impactHandled = true;
+  a.userData.hadImpact = true;
+  b.userData.hadImpact = true;
+
+  let nx = dx;
+  let nz = dz;
+
+  if(dist < 0.001){
+    nx = 0;
+    nz = 1;
   }
 
-  if (b.position.x > maxX) {
-    b.position.x = maxX;
-    v.x = -Math.abs(v.x) * 0.5;
+  const len = Math.hypot(nx,nz);
+  nx /= len;
+  nz /= len;
+
+  const va = a.userData.velocity;
+  const vb = b.userData.velocity;
+
+  // Impulse transfers momentum to the other rubber band.
+  const incoming = Math.max(2,Math.hypot(va.x,va.z));
+  const push = Math.min(6,incoming*0.62);
+
+  vb.x += nx*push;
+  vb.z += nz*push;
+
+  // Target band jumps from the impact.
+  b.userData.vy = Math.max(b.userData.vy,1.8+push*0.22);
+  b.userData.moving = true;
+
+  // The shot band loses some speed and can bounce away.
+  va.x *= -0.18;
+  va.z *= -0.18;
+  a.userData.vy = Math.max(a.userData.vy,1.1);
+  
+  $('status').textContent = 'ปะทะ! หนังยางกระเด็นแล้ว';
+}
+
+function updatePhysics(dt){
+  if(phase!=='flying' || !shotBand || !targetBand) return;
+
+  flightTime += dt;
+
+  const a = shotBand;
+  const b = targetBand;
+
+  // Move both bands horizontally.
+  for(const band of [a,b]){
+    const v = band.userData.velocity;
+
+    band.position.x += v.x*dt;
+    band.position.z += v.z*dt;
+
+    v.x *= Math.pow(0.992,dt*60);
+    v.z *= Math.pow(0.992,dt*60);
+
+    bounceFromEdge(band);
   }
 
-  if (b.position.z < -maxZ) {
-    b.position.z = -maxZ;
-    v.z = Math.abs(v.z) * 0.5;
+  // Only the launched band initially rises.
+  // The other band gets vertical movement if hit.
+  if(a.position.y>GROUND_Y || a.userData.vy!==0){
+    updateVertical(a,dt);
   }
 
-  if (b.position.z > maxZ) {
-    b.position.z = maxZ;
-    v.z = -Math.abs(v.z) * 0.5;
+  if(b.position.y>GROUND_Y || b.userData.vy!==0){
+    updateVertical(b,dt);
   }
 
-  b.userData.halo.position.x = b.position.x;
-  b.userData.halo.position.z = b.position.z;
+  collideBands();
 
-  // ตรวจว่าทับอีกวงหรือไม่
-  const other = bands.find(x => x !== b);
+  // Keep halos attached to each band.
+  for(const band of bands){
+    band.userData.halo.position.x=band.position.x;
+    band.userData.halo.position.z=band.position.z;
+  }
 
-  const dx = b.position.x - other.position.x;
-  const dz = b.position.z - other.position.z;
-  const distance = Math.hypot(dx, dz);
+  const speedA = Math.hypot(a.userData.velocity.x,a.userData.velocity.z);
+  const speedB = Math.hypot(b.userData.velocity.x,b.userData.velocity.z);
 
-  if (distance < 0.58) {
+  const verticalA = Math.abs(a.userData.vy);
+  const verticalB = Math.abs(b.userData.vy);
+
+  const aStopped =
+    a.position.y<=GROUND_Y+0.001 &&
+    speedA<0.22 &&
+    verticalA<0.35;
+
+  const bStopped =
+    b.position.y<=GROUND_Y+0.001 &&
+    speedB<0.22 &&
+    verticalB<0.35;
+
+  if(aStopped && bStopped){
+    a.position.y=GROUND_Y;
+    b.position.y=GROUND_Y;
+
+    a.userData.velocity.set(0,0,0);
+    b.userData.velocity.set(0,0,0);
+    a.userData.vy=0;
+    b.userData.vy=0;
+
+    finishTurn();
+  }
+
+  // Safety: prevent a perpetual turn if the rings keep bouncing.
+  if(flightTime>12){
+    a.userData.velocity.set(0,0,0);
+    b.userData.velocity.set(0,0,0);
+    a.userData.vy=0;
+    b.userData.vy=0;
+    a.position.y=GROUND_Y;
+    b.position.y=GROUND_Y;
+    finishTurn();
+  }
+}
+
+// ==================================================
+// SETTLE RESULT
+// ==================================================
+
+function finishTurn(){
+  if(phase!=='flying') return;
+
+  // Determine overlap only after the rings have settled.
+  const dx = shotBand.position.x-targetBand.position.x;
+  const dz = shotBand.position.z-targetBand.position.z;
+  const dist = Math.hypot(dx,dz);
+
+  if(dist < 0.58){
     endGame(current);
     return;
   }
 
-  // รอจนหยุดสนิท แล้วค่อยเปลี่ยนผู้เล่น
-  if (v.length() < 0.22) {
-    v.set(0, 0, 0);
-    b.userData.moving = false;
-    switchTurn();
-  }
+  phase='switching';
+  $('status').textContent='หนังยางหยุดแล้ว กำลังเปลี่ยนผู้เล่น...';
+
+  setTimeout(()=>{
+    if(phase!=='switching') return;
+
+    current = current===0 ? 1 : 0;
+    activeBand = bands.find(b=>b.userData.owner===current);
+
+    power=0;
+    phase='aim';
+
+    // Camera moves to the next player's ring only now.
+    yaw = current===0 ? Math.PI : 0;
+    pitch=0.48;
+    updateAimCamera();
+
+    $('turn').textContent=`ตาของผู้เล่น ${current+1}`;
+    $('status').textContent=`เล็งหนังยางของผู้เล่น ${current+1}`;
+    $('aimHint').textContent='ลากหน้าจอเพื่อหมุนกล้องเล็ง';
+    $('shootBtn').disabled=false;
+    updatePowerUI();
+  },450);
 }
 
-// ==========================================
-// Turn switching
-// ==========================================
-
-function switchTurn() {
-  if (phase !== 'flying') return;
-
-  phase = 'switching';
-  $('status').textContent = 'หนังยางหยุดแล้ว กำลังเปลี่ยนตา...';
-
-  setTimeout(() => {
-    if (phase !== 'switching') return;
-
-    current = current === 0 ? 1 : 0;
-    activeBand = bands.find(b => b.userData.owner === current);
-
-    // กล้องย้ายไปยังวงของผู้เล่นคนใหม่
-    positionCameraForTurn();
-
-    power = 0;
-    phase = 'aim';
-
-    $('turn').textContent = `ตาของผู้เล่น ${current + 1}`;
-    $('status').textContent = `เล็งหนังยางของผู้เล่น ${current + 1}`;
-    $('aimHint').textContent = 'ลากหน้าจอเพื่อหมุนกล้องเล็ง';
-    $('shootBtn').disabled = false;
-    $('powerText').textContent = 'แรงยิง: 0%';
-
-    updateAimLine();
-  }, 450);
+function endGame(winner){
+  phase='ended';
+  $('winnerText').textContent=
+    `ผู้เล่น ${winner+1} ชนะ! หนังยางทับอีกฝ่ายหลังตกลงบนกระดาน`;
+  $('resultScreen').classList.remove('hidden');
 }
 
-// ==========================================
-// Microphone
-// ==========================================
+// ==================================================
+// MICROPHONE
+// ==================================================
 
-let audioContext = null;
-let analyser = null;
-let micStream = null;
-let micBuffer = null;
-let wasBlowing = false;
+let audioContext=null;
+let analyser=null;
+let micStream=null;
+let micBuffer=null;
+let micEnabled=false;
+let wasBlowing=false;
 
-$('micBtn').addEventListener('click', async () => {
-  if (micEnabled) {
+$('micBtn').addEventListener('click',async()=>{
+  if(micEnabled){
     stopMic();
     return;
   }
 
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({
-      audio: true
-    });
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioContext=new AudioContext();
 
-    audioContext = new AudioContext();
-
-    const source = audioContext.createMediaStreamSource(micStream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 512;
-    analyser.smoothingTimeConstant = 0.5;
+    const source=audioContext.createMediaStreamSource(micStream);
+    analyser=audioContext.createAnalyser();
+    analyser.fftSize=512;
+    analyser.smoothingTimeConstant=0.5;
     source.connect(analyser);
 
-    micBuffer = new Uint8Array(analyser.fftSize);
-    micEnabled = true;
-
-    $('micBtn').textContent = '🔇 ปิดไมค์';
-    $('status').textContent = 'ไมค์พร้อมแล้ว เป่าเพื่อชาร์จและยิง';
-
-  } catch (err) {
+    micBuffer=new Uint8Array(analyser.fftSize);
+    micEnabled=true;
+    $('micBtn').textContent='🔇 ปิดไมค์';
+    $('status').textContent='เป่าค้างเพื่อชาร์จ หยุดเป่าเพื่อยิง';
+  }catch(err){
     console.error(err);
     alert('เปิดไมค์ไม่ได้ กรุณาอนุญาตไมโครโฟนและใช้ localhost หรือ HTTPS');
   }
 });
 
-function stopMic() {
-  if (micStream) micStream.getTracks().forEach(t => t.stop());
-  if (audioContext) audioContext.close();
+function stopMic(){
+  if(micStream) micStream.getTracks().forEach(t=>t.stop());
+  if(audioContext) audioContext.close();
 
-  micStream = null;
-  audioContext = null;
-  analyser = null;
-  micBuffer = null;
-  micEnabled = false;
-  wasBlowing = false;
-
-  $('micBtn').textContent = '🎙 เปิดไมค์';
+  micStream=null;
+  audioContext=null;
+  analyser=null;
+  micBuffer=null;
+  micEnabled=false;
+  wasBlowing=false;
+  $('micBtn').textContent='🎙 เปิดไมค์';
 }
 
-function updateMic(dt) {
-  if (!micEnabled || !analyser || phase !== 'aim') {
-    micLevel *= 0.9;
+function updatePowerUI(){
+  $('bar').style.width=`${Math.round(power*100)}%`;
+  $('powerText').textContent=`แรงยิง: ${Math.round(power*100)}%`;
+}
+
+function updateMic(dt){
+  if(!micEnabled || !analyser || phase!=='aim'){
+    micLevel*=0.9;
     return;
   }
 
   analyser.getByteTimeDomainData(micBuffer);
 
-  let sum = 0;
-  for (let i = 0; i < micBuffer.length; i++) {
-    const n = (micBuffer[i] - 128) / 128;
-    sum += n * n;
+  let sum=0;
+  for(let i=0;i<micBuffer.length;i++){
+    const n=(micBuffer[i]-128)/128;
+    sum+=n*n;
   }
 
-  const rms = Math.sqrt(sum / micBuffer.length);
-  micLevel = Math.max(0, (rms - 0.012) * 5);
+  const rms=Math.sqrt(sum/micBuffer.length);
+  micLevel=Math.max(0,(rms-0.012)*5);
+  const blowing=micLevel>0.12;
 
-  const blowing = micLevel > 0.12;
-
-  if (blowing) {
-    // เพิ่มแรงระหว่างเป่า
-    power = Math.min(1, power + dt * (0.35 + micLevel));
+  if(blowing){
+    power=Math.min(1,power+dt*(0.35+micLevel));
   }
 
-  $('bar').style.width = `${Math.round(power * 100)}%`;
-  $('powerText').textContent =
-    `แรงยิง: ${Math.round(power * 100)}%`;
+  updatePowerUI();
 
-  // เริ่มเป่าเพื่อชาร์จ พอหยุดเป่าจึงยิง
-  if (wasBlowing && !blowing && power > 0.08) {
+  // Stop blowing to launch the rubber band.
+  if(wasBlowing && !blowing && power>0.08){
     shoot();
   }
 
-  wasBlowing = blowing;
+  wasBlowing=blowing;
 }
 
-// ==========================================
-// Game state
-// ==========================================
+// ==================================================
+// RESET / START
+// ==================================================
 
-function endGame(winner) {
-  phase = 'ended';
-
-  $('winnerText').textContent =
-    `ผู้เล่น ${winner + 1} ชนะ! หนังยางทับอีกฝ่ายได้สำเร็จ`;
-
-  $('resultScreen').classList.remove('hidden');
-}
-
-function resetGame() {
-  for (const b of bands) {
+function resetGame(){
+  for(const b of bands){
     scene.remove(b);
     scene.remove(b.userData.halo);
     b.geometry.dispose();
@@ -742,83 +721,82 @@ function resetGame() {
     b.userData.halo.material.dispose();
   }
 
-  bands.length = 0;
+  bands.length=0;
 
-  // มีหนังยางเพียง 2 วง
-  makeBand(0, 0, 3.1);
-  makeBand(1, 0, -3.1);
+  // Exactly two rubber bands.
+  createBand(0,0,3.1);
+  createBand(1,0,-3.1);
 
-  current = 0;
-  activeBand = bands[0];
-  power = 0;
-  micLevel = 0;
-  phase = 'aim';
+  current=0;
+  activeBand=bands[0];
+  shotBand=null;
+  targetBand=null;
+  power=0;
+  phase='aim';
+  pointerDown=false;
 
-  $('turn').textContent = 'ตาของผู้เล่น 1';
-  $('status').textContent = 'เล็งหนังยางของผู้เล่น 1';
-  $('shootBtn').disabled = false;
   $('resultScreen').classList.add('hidden');
+  $('shootBtn').disabled=false;
+  $('turn').textContent='ตาของผู้เล่น 1';
+  $('status').textContent='เล็งหนังยางของผู้เล่น 1';
+  $('aimHint').textContent='ลากหน้าจอเพื่อหมุนกล้องเล็ง';
 
-  positionCameraForTurn();
+  yaw=Math.PI;
+  pitch=0.48;
+
+  cameraAnchor.copy(activeBand.position);
+  updateAimCamera();
+  updatePowerUI();
   updateAimLine();
 }
 
-$('shootBtn').addEventListener('click', shoot);
-$('resetBtn').addEventListener('click', resetGame);
-$('againBtn').addEventListener('click', resetGame);
+$('shootBtn').addEventListener('click',shoot);
+$('resetBtn').addEventListener('click',resetGame);
+$('againBtn').addEventListener('click',resetGame);
 
-$('startBtn').addEventListener('click', () => {
-  gameStarted = true;
+$('startBtn').addEventListener('click',()=>{
+  gameStarted=true;
   $('start').classList.add('hidden');
   resetGame();
 });
 
-// ==========================================
-// Main loop
-// ==========================================
+// ==================================================
+// GAME LOOP
+// ==================================================
 
-let previous = performance.now();
+let previous=performance.now();
 
-function animate(now) {
+function animate(now){
   requestAnimationFrame(animate);
 
-  const dt = Math.min((now - previous) / 1000, 0.04);
-  previous = now;
+  const dt=Math.min((now-previous)/1000,0.035);
+  previous=now;
 
   updateMic(dt);
   updatePhysics(dt);
 
-  if (phase === 'aim') {
+  if(phase==='aim'){
+    updateAimCamera();
     updateAimLine();
-
-    // ตอนเล็ง กล้องขยับตามการหมุนรอบ activeBand
-    // ตอนบินจะไม่เรียกฟังก์ชันนี้
-    if (!pointerDown) {
-      updateAimCamera();
-    }
+  }else if(phase==='flying'){
+    // Fixed launch anchor; camera never follows the flying band.
+    updateFlightCamera();
   }
 
-  // ยกวงที่ควบคุมเล็กน้อย
-  for (const b of bands) {
-    b.position.y =
-      b === activeBand && phase === 'aim' ? 0.19 : 0.12;
-
-    b.userData.halo.position.x = b.position.x;
-    b.userData.halo.position.z = b.position.z;
-
-    b.userData.halo.material.opacity =
-      b === activeBand && phase === 'aim' ? 0.55 : 0.22;
+  for(const b of bands){
+    b.userData.halo.material.opacity=
+      b===activeBand && phase==='aim' ? 0.55 : 0.22;
   }
 
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
 
 requestAnimationFrame(animate);
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
 });
 </script>
 </body>
