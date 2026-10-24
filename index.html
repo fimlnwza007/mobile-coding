@@ -41,7 +41,7 @@ button:disabled{opacity:.5}
       ผู้เล่นละ 1 วง สลับตากันเล่น<br>
       ลากหน้าจอหมุนกล้อง ซ้าย-ขวาเพื่อเล็ง<br>
       <b>ลากกล้องขึ้น-ลง เพื่อปรับมุมยิงสูงหรือต่ำ</b><br>
-      <b>ยิ่งเป่าลมใส่ไมค์แรง แรงยิงยิ่งสูง!</b><br>
+      <b>ยิ่งเป่าลมใส่ไมค์แรง แรงยิงยิ่งพุ่งไกล!</b><br>
       หยุดเป่าเพื่อยิง หรือใช้ปุ่มยิงแทนไมค์
     </p>
     <button class="primary" id="startBtn">เริ่มเล่น</button>
@@ -167,7 +167,7 @@ addEdge(0.18,0.18,10,-4.05,-0.05,0);
 addEdge(0.18,0.18,10,4.05,-0.05,0);
 
 // ==================================================
-// RUBBER BANDS: ALWAYS TWO
+// RUBBER BANDS (FREE TUMBLING)
 // ==================================================
 
 const bands = [];
@@ -185,12 +185,14 @@ function createBand(owner,x,z){
     })
   );
 
+  // ตั้งต้นให้นอนราบระนาบพื้น
   ring.rotation.x = Math.PI/2;
   ring.position.set(x,GROUND_Y,z);
   ring.castShadow = true;
 
   ring.userData.owner = owner;
   ring.userData.velocity = new THREE.Vector3();
+  ring.userData.angularVelocity = new THREE.Vector3(); // ความเร็วในการกลิ้ง/หมุนอิสระ
   ring.userData.vy = 0;
   ring.userData.moving = false;
   ring.userData.hadImpact = false;
@@ -351,23 +353,23 @@ renderer.domElement.addEventListener('pointercancel',()=>{
 });
 
 // ==================================================
-// SHOOT (POWER BASED ON BLOW INTENSITY)
+// SHOOT (FULL POWER & FREE TUMBLING ROTATION)
 // ==================================================
 
 function shoot(){
   if(!gameStarted || phase!=='aim' || !activeBand) return;
 
   const direction = forwardFromYaw();
-  const finalPower = Math.max(0.12, power);
+  const finalPower = Math.max(0.15, power);
 
-  // ความเร็วแนวนอนและแนวตั้งสัมพันธ์ตามแรงเป่าจริง
-  const speed = 1.8 + finalPower * 6.5;
+  // ปรับความเร็วสูงสุดให้พุ่งไกลเต็มสนามตามแรงเป่าจริง
+  const speed = 2.5 + finalPower * 11.0;
 
   const pitchNorm = (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH);
-  const elevation = THREE.MathUtils.lerp(0.35, 0.02, pitchNorm);
+  const elevation = THREE.MathUtils.lerp(0.38, 0.02, pitchNorm);
 
   const horizontalSpeed = speed * Math.cos(elevation);
-  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 1.5;
+  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 1.8;
 
   shotBand = activeBand;
   targetBand = bands.find(b=>b!==shotBand);
@@ -381,6 +383,13 @@ function shoot(){
   shotBand.userData.vy = verticalSpeed;
   shotBand.userData.moving = true;
   shotBand.userData.hadImpact = false;
+
+  // เพิ่มการหมุนตีลังกาและกลิ้งอิสระ (Free Tumbling Angular Velocity)
+  shotBand.userData.angularVelocity.set(
+    (Math.random() - 0.5) * 12,
+    (Math.random() - 0.5) * 12,
+    (Math.random() - 0.5) * 12
+  ).addScaledVector(new THREE.Vector3(-direction.z, 0, direction.x), horizontalSpeed * 2.5);
 
   targetBand.userData.moving = false;
   targetBand.userData.vy = targetBand.userData.vy || 0;
@@ -399,29 +408,34 @@ function shoot(){
 }
 
 // ==================================================
-// REALISTIC FRICTION & BOUNCE
+// PHYSICS: BOUNCE, FRICTION & FREE TUMBLING ROTATION
 // ==================================================
 
 function bounceFromEdge(b){
   const v = b.userData.velocity;
+  const av = b.userData.angularVelocity;
   const maxX = BOARD_W/2-RING_R-0.2;
   const maxZ = BOARD_D/2-RING_R-0.2;
 
   if(b.position.x < -maxX){
     b.position.x = -maxX;
-    v.x = Math.abs(v.x) * 0.1;
+    v.x = -v.x * 0.25;
+    av.x += (Math.random() - 0.5) * 8;
   }
   if(b.position.x > maxX){
     b.position.x = maxX;
-    v.x = -Math.abs(v.x) * 0.1;
+    v.x = -v.x * 0.25;
+    av.x += (Math.random() - 0.5) * 8;
   }
   if(b.position.z < -maxZ){
     b.position.z = -maxZ;
-    v.z = Math.abs(v.z) * 0.1;
+    v.z = -v.z * 0.25;
+    av.z += (Math.random() - 0.5) * 8;
   }
   if(b.position.z > maxZ){
     b.position.z = maxZ;
-    v.z = -Math.abs(v.z) * 0.1;
+    v.z = -v.z * 0.25;
+    av.z += (Math.random() - 0.5) * 8;
   }
 }
 
@@ -433,7 +447,7 @@ function updateVertical(b,dt){
     b.position.y = GROUND_Y;
 
     if(b.userData.vy < -0.8){
-      b.userData.vy = -b.userData.vy * 0.05;
+      b.userData.vy = -b.userData.vy * 0.08;
     }else{
       b.userData.vy = 0;
     }
@@ -470,19 +484,23 @@ function collideBands(){
 
   const va = a.userData.velocity;
   const vb = b.userData.velocity;
+  const ava = a.userData.angularVelocity;
+  const avb = b.userData.angularVelocity;
 
-  const incoming = Math.max(0.5, Math.hypot(va.x, va.z));
-  const push = Math.min(2.5, incoming * 0.35);
+  const incoming = Math.max(1.0, Math.hypot(va.x, va.z));
+  const push = Math.min(4.5, incoming * 0.55);
 
   vb.x += nx * push;
   vb.z += nz * push;
-
-  b.userData.vy = Math.max(b.userData.vy, 0.4);
+  b.userData.vy = Math.max(b.userData.vy, 0.6);
   b.userData.moving = true;
+  
+  avb.add(new THREE.Vector3(nx * 8, (Math.random()-0.5)*10, nz * 8));
 
-  va.x *= 0.1;
-  va.z *= 0.1;
-  a.userData.vy = Math.max(a.userData.vy, 0.2);
+  va.x *= 0.15;
+  va.z *= 0.15;
+  ava.multiplyScalar(0.5);
+  a.userData.vy = Math.max(a.userData.vy, 0.3);
   
   $('status').textContent = 'โดนยางอีกฝั่ง!';
 }
@@ -497,15 +515,34 @@ function updatePhysics(dt){
 
   for(const band of [a,b]){
     const v = band.userData.velocity;
+    const av = band.userData.angularVelocity;
 
-    band.position.x += v.x*dt;
-    band.position.z += v.z*dt;
+    band.position.x += v.x * dt;
+    band.position.z += v.z * dt;
+
+    // อัปเดตการหมุนและกลิ้งอิสระ 3D (Free Tumbling)
+    band.rotation.x += av.x * dt;
+    band.rotation.y += av.y * dt;
+    band.rotation.z += av.z * dt;
 
     const isGround = band.position.y <= GROUND_Y + 0.005;
-    const damping = isGround ? 0.12 : 0.95;
-    
-    v.x *= Math.pow(damping, dt * 60);
-    v.z *= Math.pow(damping, dt * 60);
+
+    if(isGround){
+      // แรงเสียดทานบนพื้นแบบ Linear Deceleration ให้หยุดสมจริงตามระยะทาง
+      const currentSpeed = v.length();
+      if(currentSpeed > 0.02){
+        const frictionRate = 4.5;
+        v.addScaledVector(v.clone().normalize(), -frictionRate * dt);
+        av.multiplyScalar(0.92); // ลดความเร็วการหมุนลงเรื่อยๆ เมื่อเสียดทานกับพื้น
+      } else {
+        v.set(0,0,0);
+        av.set(0,0,0);
+      }
+    } else {
+      // แรงต้านอากาศขณะลอยตัว
+      v.multiplyScalar(Math.pow(0.98, dt * 60));
+      av.multiplyScalar(Math.pow(0.99, dt * 60));
+    }
 
     bounceFromEdge(band);
   }
@@ -533,29 +570,31 @@ function updatePhysics(dt){
 
   const aStopped =
     a.position.y<=GROUND_Y+0.001 &&
-    speedA<0.05 &&
-    verticalA<0.1;
+    speedA<0.03 &&
+    verticalA<0.05;
 
   const bStopped =
     b.position.y<=GROUND_Y+0.001 &&
-    speedB<0.05 &&
-    verticalB<0.1;
+    speedB<0.03 &&
+    verticalB<0.05;
 
   if(aStopped && bStopped){
     a.position.y=GROUND_Y;
     b.position.y=GROUND_Y;
 
     a.userData.velocity.set(0,0,0);
-    b.userData.velocity.set(0,0,0);
-    a.userData.vy=0;
+    b.userData.angularVelocity.set(0,0,0);
+    b.userData.vy=0;
     b.userData.vy=0;
 
     finishTurn();
   }
 
-  if(flightTime>8){
+  if(flightTime>9){
     a.userData.velocity.set(0,0,0);
+    a.userData.angularVelocity.set(0,0,0);
     b.userData.velocity.set(0,0,0);
+    b.userData.angularVelocity.set(0,0,0);
     a.userData.vy=0;
     b.userData.vy=0;
     a.position.y=GROUND_Y;
@@ -612,7 +651,7 @@ function endGame(winner){
 }
 
 // ==================================================
-// MICROPHONE DETECTOR (DYNAMIC VOLUME SPEED)
+// MICROPHONE DETECTOR
 // ==================================================
 
 let audioContext=null;
@@ -681,19 +720,16 @@ function updateMic(dt){
   }
 
   const rms=Math.sqrt(sum/micBuffer.length);
-  // คำนวณความดังจริงจากการเป่า (RMS Volume)
   micLevel=Math.max(0, (rms - 0.015) * 6.0);
   const blowing = micLevel > 0.08;
 
   if(blowing){
-    // ความเร็วในการสะสมแรงเพิ่มตามความดังของการเป่า ยิ่งดัง ยิ่งพุ่งเต็มเร็ว!
     const blowIntensity = Math.min(2.5, micLevel * 2.2);
     power = Math.min(1.0, power + dt * blowIntensity);
   }
 
   updatePowerUI();
 
-  // เมื่อหยุดเป่า จะสั่งยิงทันที
   if(wasBlowing && !blowing && power > 0.05){
     shoot();
   }
