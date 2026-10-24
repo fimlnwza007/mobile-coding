@@ -1,0 +1,484 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เป่ากบ 3D</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;font-family:system-ui,sans-serif;background:#18251c;color:#fff}
+#game{position:fixed;inset:0}
+canvas{display:block}
+.panel{position:fixed;z-index:2;background:#18291eea;padding:12px 16px;border-radius:14px}
+#top{top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center}
+#help{top:85px;left:12px;line-height:1.8;font-size:12px}
+#bottom{bottom:12px;left:12px;right:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+button{border:0;border-radius:10px;padding:12px;background:#f5cf7b;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5}
+#meter{height:10px;background:#444;border-radius:10px;overflow:hidden;min-width:100px;flex:1}
+#fill{height:100%;width:0;background:#70e58a}
+#status{font-size:12px;color:#cdd8cd}
+#overlay{position:fixed;inset:0;z-index:5;background:#101a14dd;display:grid;place-items:center;padding:20px}
+.dialog{max-width:420px;background:#f4edda;color:#26352a;border-radius:20px;padding:24px}
+.dialog button{margin:4px}
+@media(max-width:600px){#help{max-width:190px;font-size:11px}#bottom{gap:6px;padding:9px}button{padding:10px;font-size:12px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="top" class="panel">
+  <div><b>🐸 เป่ากบ 3D</b><div style="font-size:12px">ศึกหนังยางบนกระดานไม้</div></div>
+  <div style="text-align:right"><b id="score">เขียว 3 : 3 ส้ม</b><div id="turn">ตา: สีเขียว</div></div>
+</div>
+
+<div id="help" class="panel">
+  <b>วิธีเล่น</b><br>
+  1. เลือกหนังยางของตัวเอง<br>
+  2. ลากเพื่อเล็งทิศทาง<br>
+  3. เป่าหรือกดค้างปุ่มเป่า<br>
+  4. ทับหนังยางอีกฝ่ายเพื่อจับ
+</div>
+
+<div id="bottom" class="panel">
+  <div id="meter"><div id="fill"></div></div>
+  <button id="mic">🎙 เปิดไมค์</button>
+  <button id="blow">💨 เป่า!</button>
+  <button id="reset">↻ เริ่มใหม่</button>
+  <div id="status">เลือกหนังยางก่อนเริ่ม</div>
+</div>
+
+<div id="overlay">
+  <div class="dialog">
+    <h1>🐸 เป่ากบ 3D</h1>
+    <p>เล่น 2 คนบนเครื่องเดียว ผลัดกันเป่าหนังยางให้ทับของคู่แข่ง</p>
+    <button id="start">เริ่มเกม</button>
+    <button id="startMic">เริ่มเกม + เปิดไมค์</button>
+    <p style="font-size:12px">การใช้ไมค์ต้องอนุญาตผ่านเบราว์เซอร์ โดยทั่วไปต้องใช้ HTTPS หรือ localhost</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#9db7a0');
+scene.fog = new THREE.Fog('#9db7a0', 15, 30);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, .1, 100);
+camera.position.set(0, 8.7, 10.8);
+camera.lookAt(0,0,0);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+$('game').appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe7f5e6,0x59644a,2));
+const sun = new THREE.DirectionalLight(0xffedcf,3);
+sun.position.set(-4,9,5);
+sun.castShadow = true;
+scene.add(sun);
+
+const material = (color,roughness=.8) =>
+  new THREE.MeshStandardMaterial({color,roughness});
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(200,200),material('#6d8b70')
+);
+floor.rotation.x=-Math.PI/2;
+floor.position.y=-.45;
+floor.receiveShadow=true;
+scene.add(floor);
+
+// กระดานไม้
+const board = new THREE.Mesh(
+  new THREE.BoxGeometry(8.4,.35,6.2),material('#a8794d')
+);
+board.position.y=-.08;
+board.receiveShadow=true;
+board.castShadow=true;
+scene.add(board);
+
+const top = new THREE.Mesh(
+  new THREE.BoxGeometry(8.12,.08,5.92),material('#c89a66')
+);
+top.position.y=.13;
+top.receiveShadow=true;
+scene.add(top);
+
+// ลายไม้
+for(let i=0;i<11;i++){
+  const line=new THREE.Mesh(
+    new THREE.BoxGeometry(7.9,.008,.012),
+    material(i%2?'#b98b59':'#d2a572')
+  );
+  line.position.set(0,.176,-2.7+i*.54);
+  scene.add(line);
+}
+
+// ขอบกระดาน
+for(const [x,z,w,d] of [
+  [0,-2.96,8.2,.12],[0,2.96,8.2,.12],
+  [-4.06,0,.12,5.9],[4.06,0,.12,5.9]
+]){
+  const rim=new THREE.Mesh(
+    new THREE.BoxGeometry(w,.2,d),material('#64472e')
+  );
+  rim.position.set(x,.2,z);
+  rim.castShadow=true;
+  scene.add(rim);
+}
+
+// ของตกแต่งรูปกบ
+function frog(x,z,color){
+  const group=new THREE.Group();
+  const body=new THREE.Mesh(
+    new THREE.SphereGeometry(.28,16,12),material(color)
+  );
+  body.scale.set(1.2,.75,1);
+  body.position.y=.3;
+  group.add(body);
+  for(const dx of [-.17,.17]){
+    const eye=new THREE.Mesh(
+      new THREE.SphereGeometry(.09,12,8),material('#f5edcf')
+    );
+    eye.position.set(dx,.48,-.12);
+    group.add(eye);
+    const pupil=new THREE.Mesh(
+      new THREE.SphereGeometry(.04,10,8),material('#1b281d')
+    );
+    pupil.position.set(dx,.49,-.19);
+    group.add(pupil);
+  }
+  group.position.set(x,.18,z);
+  scene.add(group);
+}
+frog(-3.35,-2.2,'#387b48');
+frog(3.35,2.2,'#bd7137');
+
+// ระบบหนังยาง
+const bands=[];
+const greenRing=material('#4fe082',.35);
+const orangeRing=material('#ffb34d',.35);
+let current=0, selected=null, locked=false;
+let aim={x:0,z:-1};
+let micStream=null, analyser=null, audioCtx=null, micLevel=0;
+let simHold=false, simStart=0;
+
+function makeBand(owner,x,z){
+  const group=new THREE.Group();
+  group.position.set(x,.24,z);
+  group.userData={
+    owner, vx:0, vz:0, moving:false, active:true, owner
+  };
+
+  const ring=new THREE.Mesh(
+    new THREE.TorusGeometry(.34,.085,10,28),
+    owner===0?greenRing:orangeRing
+  );
+  ring.rotation.x=Math.PI/2;
+  ring.castShadow=true;
+  group.add(ring);
+  group.userData.ring=ring;
+
+  const inner=new THREE.Mesh(
+    new THREE.CircleGeometry(.23,24),
+    material(owner===0?'#2f7544':'#a95827')
+  );
+  inner.rotation.x=-Math.PI/2;
+  inner.position.y=-.015;
+  group.add(inner);
+
+  scene.add(group);
+  bands.push(group);
+}
+
+function reset(){
+  for(const b of bands)scene.remove(b);
+  bands.length=0;
+  current=0;
+  selected=null;
+  locked=false;
+
+  for(let i=0;i<3;i++){
+    makeBand(0,-2.7+i*.55,1.65+(i%2)*.3);
+    makeBand(1,2.7-i*.55,-1.65-(i%2)*.3);
+  }
+  updateUI();
+  $('status').textContent='เลือกหนังยางสีเขียวเพื่อเริ่ม';
+  $('fill').style.width='0%';
+}
+
+function updateUI(){
+  const greenCount=bands.filter(b=>b.userData.owner===0&&b.userData.active).length;
+  const orangeCount=bands.filter(b=>b.userData.owner===1&&b.userData.active).length;
+  $('score').textContent=`เขียว ${greenCount} : ${orangeCount} ส้ม`;
+  $('turn').textContent='ตา: สี '+(current===0?'เขียว':'ส้ม');
+}
+
+function selectBand(b){
+  if(locked||!b.userData.active||b.userData.owner!==current)return;
+  selected=b;
+  bands.forEach(x=>{
+    x.userData.ring.material.emissive.setHex(x===b?0x244422:0x000000);
+  });
+  $('status').textContent='เลือกแล้ว — ลากเพื่อเล็ง';
+}
+
+// แตะเลือกหนังยาง และลากเพื่อเล็ง
+const raycaster=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+let pointerStart=null;
+
+function screenToBoard(x,y){
+  pointer.x=x/innerWidth*2-1;
+  pointer.y=-(y/innerHeight)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-.22);
+  const p=new THREE.Vector3();
+  raycaster.ray.intersectPlane(plane,p);
+  return p;
+}
+
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if($('overlay').style.display!=='none')return;
+  pointerStart={x:e.clientX,y:e.clientY};
+  pointer.x=e.clientX/innerWidth*2-1;
+  pointer.y=-(e.clientY/innerHeight)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+
+  const active=bands.filter(b=>b.userData.active);
+  const hits=raycaster.intersectObjects(
+    active.map(b=>b.userData.ring),false
+  );
+  if(hits.length){
+    const b=active.find(b=>b.userData.ring===hits[0].object);
+    if(b)selectBand(b);
+  }
+});
+
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!pointerStart||!selected||locked)return;
+  const dx=e.clientX-pointerStart.x;
+  const dy=e.clientY-pointerStart.y;
+
+  if(Math.hypot(dx,dy)>12){
+    const p=screenToBoard(e.clientX,e.clientY);
+    let dxw=p.x-selected.position.x;
+    let dzw=p.z-selected.position.z;
+    const len=Math.hypot(dxw,dzw)||1;
+    aim={x:dxw/len,z:dzw/len};
+    $('status').textContent='เล็งแล้ว กดเป่าเพื่อยิง!';
+  }
+  pointerStart=null;
+});
+
+function fire(power){
+  if(locked||!selected){
+    $('status').textContent='เลือกหนังยางของตาคุณก่อน';
+    return;
+  }
+
+  power=Math.max(.12,Math.min(1,power));
+  const b=selected;
+  const owner=b.userData.owner;
+
+  b.userData.vx=aim.x*(1.8+power*5.5);
+  b.userData.vz=aim.z*(1.8+power*5.5);
+
+  // ถ้ายังไม่ลากเล็ง ให้ยิงเข้าหาฝ่ายตรงข้าม
+  if(!pointerStart && Math.abs(aim.x)<.01 && Math.abs(aim.z+1)<.01){
+    b.userData.vx=owner===0?power*5:-power*5;
+    b.userData.vz=owner===0?-power*.5:power*.5;
+  }
+
+  b.userData.moving=true;
+  locked=true;
+  selected=null;
+  $('status').textContent='หนังยางกำลังเคลื่อนที่...';
+}
+
+$('blow').addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(!selected){
+    $('status').textContent='เลือกหนังยางของคุณก่อน';
+    return;
+  }
+  if(analyser){
+    fire(Math.max(.18,micLevel*1.7));
+  }else{
+    simStart=performance.now();
+    simHold=true;
+  }
+});
+
+function stopSim(){
+  if(!simHold)return;
+  simHold=false;
+  const duration=Math.min(1200,performance.now()-simStart);
+  fire(Math.min(1,.18+duration/1100*.82));
+}
+$('blow').addEventListener('pointerup',stopSim);
+$('blow').addEventListener('pointerleave',stopSim);
+$('blow').addEventListener('pointercancel',stopSim);
+
+// เปิดไมโครโฟน
+async function enableMic(){
+  try{
+    if(!navigator.mediaDevices?.getUserMedia){
+      throw new Error('Microphone API unavailable');
+    }
+    micStream=await navigator.mediaDevices.getUserMedia({
+      audio:{
+        echoCancellation:false,
+        noiseSuppression:false,
+        autoGainControl:false
+      }
+    });
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const source=audioCtx.createMediaStreamSource(micStream);
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=1024;
+    source.connect(analyser);
+    $('mic').textContent='🎙 ไมค์เปิดแล้ว';
+    $('status').textContent='ไมค์พร้อม — เป่าเพื่อยิง';
+  }catch(error){
+    $('status').textContent='เปิดไมค์ไม่ได้ กดค้างปุ่มเป่าแทนได้';
+  }
+}
+
+$('mic').onclick=enableMic;
+$('startMic').onclick=async()=>{
+  $('overlay').style.display='none';
+  await enableMic();
+};
+$('start').onclick=()=>{
+  $('overlay').style.display='none';
+};
+$('reset').onclick=reset;
+
+// วัดระดับเสียงจากไมค์
+function updateMic(){
+  if(analyser){
+    const arr=new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(arr);
+    let sum=0;
+    for(const v of arr){
+      const n=(v-128)/128;
+      sum+=n*n;
+    }
+    const rms=Math.sqrt(sum/arr.length);
+    micLevel=Math.max(0,Math.min(1,(rms-.012)*7));
+    $('fill').style.width=(micLevel*100)+'%';
+  }else if(simHold){
+    micLevel=Math.min(1,.15+(performance.now()-simStart)/900*.85);
+    $('fill').style.width=(micLevel*100)+'%';
+  }else{
+    $('fill').style.width='0%';
+  }
+}
+
+// ฟิสิกส์อย่างง่าย
+function resolveOverlaps(){
+  let captured=0;
+  for(const b of bands){
+    if(!b.userData.active)continue;
+    for(const other of bands){
+      if(b===other||!other.userData.active)continue;
+      if(b.userData.owner===other.userData.owner)continue;
+      if(Math.hypot(
+        b.position.x-other.position.x,
+        b.position.z-other.position.z
+      )<.48){
+        other.userData.active=false;
+        other.visible=false;
+        captured++;
+      }
+    }
+  }
+
+  updateUI();
+  if(captured){
+    $('status').textContent=`ทับได้ ${captured} เส้น!`;
+  }
+
+  const remaining=bands.filter(b=>b.userData.active);
+  if(!remaining.some(b=>b.userData.owner===0)||
+     !remaining.some(b=>b.userData.owner===1)){
+    $('status').textContent=remaining.some(b=>b.userData.owner===0)
+      ?'ผู้เล่นสีเขียวชนะ!'
+      :'ผู้เล่นสีส้มชนะ!';
+    locked=true;
+  }
+}
+
+function step(dt){
+  let anyMoving=false;
+
+  for(const b of bands){
+    const d=b.userData;
+    if(!d.active||!d.moving)continue;
+    anyMoving=true;
+
+    b.position.x+=d.vx*dt;
+    b.position.z+=d.vz*dt;
+    d.vx*=Math.pow(.19,dt);
+    d.vz*=Math.pow(.19,dt);
+
+    if(Math.abs(b.position.x)>3.72){
+      b.position.x=Math.sign(b.position.x)*3.72;
+      d.vx*=-.35;
+    }
+    if(Math.abs(b.position.z)>2.62){
+      b.position.z=Math.sign(b.position.z)*2.62;
+      d.vz*=-.35;
+    }
+
+    if(Math.hypot(d.vx,d.vz)<.12){
+      d.moving=false;
+      d.vx=0;
+      d.vz=0;
+    }
+  }
+
+  if(!anyMoving&&locked){
+    // ตรวจจับการทับก่อนเปลี่ยนผู้เล่น
+    resolveOverlaps();
+    if(bands.some(b=>b.userData.active&&b.userData.owner===0)&&
+       bands.some(b=>b.userData.active&&b.userData.owner===1)){
+      current=1-current;
+      locked=false;
+      updateUI();
+      $('status').textContent='สลับตา: สี '+(current===0?'เขียว':'ส้ม');
+    }
+  }
+}
+
+let last=performance.now();
+function animate(now){
+  requestAnimationFrame(animate);
+  const dt=Math.min(.04,(now-last)/1000);
+  last=now;
+  updateMic();
+  step(dt);
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+reset();
+})();
+</script>
+</body>
+</html>
