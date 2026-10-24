@@ -85,8 +85,7 @@ button:disabled{opacity:.5}
 </div>
 
 <script type="module">
-import * as THREE from
-'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
 
 const $ = id => document.getElementById(id);
 
@@ -128,7 +127,7 @@ const GROUND_Y = 0.12;
 
 const board = new THREE.Mesh(
   new THREE.BoxGeometry(BOARD_W, 0.35, BOARD_D),
-  new THREE.MeshStandardMaterial({color:0x98633b, roughness:0.8})
+  new THREE.MeshStandardMaterial({color:0x98633b, roughness:0.9})
 );
 board.position.y = -0.19;
 board.receiveShadow = true;
@@ -180,7 +179,7 @@ function createBand(owner,x,z){
     new THREE.TorusGeometry(RING_R,0.09,14,48),
     new THREE.MeshStandardMaterial({
       color,
-      roughness:0.4,
+      roughness:0.8, // ยางมีความขรุขระ ไม่เงา
       emissive:color,
       emissiveIntensity:0.08
     })
@@ -226,7 +225,6 @@ let shotBand = null;
 let targetBand = null;
 
 let phase = 'aim';
-// aim, flying, switching, ended
 
 let yaw = Math.PI;
 let pitch = 0.48;
@@ -242,7 +240,6 @@ let pointerDown = false;
 let lastX = 0;
 let lastY = 0;
 let impactHandled = false;
-let shotLanded = false;
 let flightTime = 0;
 
 function forwardFromYaw(){
@@ -312,7 +309,7 @@ function updateAimLine(){
 }
 
 // ==================================================
-// CAMERA INPUT: DRAG TO ROTATE & CONTROL ELEVATION
+// CAMERA INPUT
 // ==================================================
 
 renderer.domElement.addEventListener('pointerdown',e=>{
@@ -354,24 +351,24 @@ renderer.domElement.addEventListener('pointercancel',()=>{
 });
 
 // ==================================================
-// SHOOT (CONTROLLED BY CAMERA PITCH)
+// SHOOT (REALISTIC RUBBER BAND PHYSICS)
 // ==================================================
 
 function shoot(){
   if(!gameStarted || phase!=='aim' || !activeBand) return;
 
   const direction = forwardFromYaw();
-  const finalPower = Math.max(0.2, power);
-  const speed = 3.0 + finalPower * 7.5;
+  const finalPower = Math.max(0.15, power);
 
-  // ควบคุมมุมยิง (Elevation) ตามมุมก้มเงยของกล้อง (Pitch)
-  // เมื่อกล้องเงยขึ้น (pitch น้อย) -> ยิงโด่ง (มุมสูง)
-  // เมื่อกล้องก้มลง (pitch มาก) -> ยิงเลียด (มุมต่ำ)
+  // ปรับความเร็วตามการเป่าจริง (ไม่พุ่งไกลเกินไป)
+  const speed = 2.0 + finalPower * 5.0;
+
+  // ปรับการส่งแนวดิ่งตาม Pitch ของกล้อง
   const pitchNorm = (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH);
-  const elevation = THREE.MathUtils.lerp(0.55, 0.05, pitchNorm);
+  const elevation = THREE.MathUtils.lerp(0.35, 0.02, pitchNorm);
 
   const horizontalSpeed = speed * Math.cos(elevation);
-  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 2.0;
+  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 1.2;
 
   shotBand = activeBand;
   targetBand = bands.find(b=>b!==shotBand);
@@ -391,20 +388,19 @@ function shoot(){
 
   cameraAnchor.copy(shotBand.position);
   impactHandled = false;
-  shotLanded = false;
   flightTime = 0;
   pointerDown = false;
   phase = 'flying';
 
-  $('status').textContent = 'หนังยางกำลังพุ่ง!';
-  $('aimHint').textContent = 'ลากเพื่อหมุนกล้องได้ กล้องไม่ตามหนังยาง';
+  $('status').textContent = 'กำลังเป่าหนังยาง!';
+  $('aimHint').textContent = 'หมุนกล้องดูการยิงได้';
   $('shootBtn').disabled = true;
 
   updateFlightCamera();
 }
 
 // ==================================================
-// IMPACT / RUBBER BAND PHYSICS (REDUCED BOUNCE & SLIP)
+// REALISTIC FRICTION & BOUNCE
 // ==================================================
 
 function bounceFromEdge(b){
@@ -412,35 +408,36 @@ function bounceFromEdge(b){
   const maxX = BOARD_W/2-RING_R-0.2;
   const maxZ = BOARD_D/2-RING_R-0.2;
 
-  // ลดแรงสะท้อนจากขอบ (Restitution ลดลงเหลือ 0.35)
+  // เมื่อชนขอบกระดาน ยางจะสูญเสียพลังงานเกือบทั้งหมด (ไม่ดีดสะท้อน)
   if(b.position.x < -maxX){
     b.position.x = -maxX;
-    v.x = Math.abs(v.x) * 0.35;
+    v.x = Math.abs(v.x) * 0.1;
   }
   if(b.position.x > maxX){
     b.position.x = maxX;
-    v.x = -Math.abs(v.x) * 0.35;
+    v.x = -Math.abs(v.x) * 0.1;
   }
   if(b.position.z < -maxZ){
     b.position.z = -maxZ;
-    v.z = Math.abs(v.z) * 0.35;
+    v.z = Math.abs(v.z) * 0.1;
   }
   if(b.position.z > maxZ){
     b.position.z = maxZ;
-    v.z = -Math.abs(v.z) * 0.35;
+    v.z = -Math.abs(v.z) * 0.1;
   }
 }
 
 function updateVertical(b,dt){
-  b.userData.vy -= 9.8*dt;
-  b.position.y += b.userData.vy*dt;
+  // เพิ่มแรงโน้มถ่วงให้ยางตกเร็วขึ้น หนักแน่นขึ้น
+  b.userData.vy -= 18.0 * dt;
+  b.position.y += b.userData.vy * dt;
 
   if(b.position.y <= GROUND_Y){
     b.position.y = GROUND_Y;
 
-    // ลดการเด้งดúngเมื่อตกถึงพื้น (Restitution ลดลงเหลือ 0.15)
-    if(b.userData.vy < -0.5){
-      b.userData.vy = -b.userData.vy * 0.15;
+    // หนังยางไม่มีความเด้ง (Inelastic Bounce) แป๊กนิ่งทันที
+    if(b.userData.vy < -0.8){
+      b.userData.vy = -b.userData.vy * 0.05; // เด้งแค่ 5% เท่านั้น
     }else{
       b.userData.vy = 0;
     }
@@ -478,21 +475,21 @@ function collideBands(){
   const va = a.userData.velocity;
   const vb = b.userData.velocity;
 
-  // ลดแรงกระแทกปะทะระหว่างวง (ลดความรุนแรงและเด้งเว่อร์)
-  const incoming = Math.max(1, Math.hypot(va.x, va.z));
-  const push = Math.min(4, incoming * 0.45);
+  // การปะทะกันของยางวง (แรงส่งต่ำ ไม่ปลิวสะบัด)
+  const incoming = Math.max(0.5, Math.hypot(va.x, va.z));
+  const push = Math.min(2.5, incoming * 0.35);
 
-  vb.x += nx*push;
-  vb.z += nz*push;
+  vb.x += nx * push;
+  vb.z += nz * push;
 
-  b.userData.vy = Math.max(b.userData.vy, 1.0 + push * 0.15);
+  b.userData.vy = Math.max(b.userData.vy, 0.4);
   b.userData.moving = true;
 
-  va.x *= -0.1;
-  va.z *= -0.1;
-  a.userData.vy = Math.max(a.userData.vy, 0.5);
+  va.x *= 0.1;
+  va.z *= 0.1;
+  a.userData.vy = Math.max(a.userData.vy, 0.2);
   
-  $('status').textContent = 'ปะทะ! หนังยางกระเด็นแล้ว';
+  $('status').textContent = 'โดนยางอีกฝั่ง!';
 }
 
 function updatePhysics(dt){
@@ -509,9 +506,9 @@ function updatePhysics(dt){
     band.position.x += v.x*dt;
     band.position.z += v.z*dt;
 
-    // เพิ่มแรงเสียดทานพื้น (Ground Friction) เพื่อแก้ปัญหาพื้นลื่นเกินไป
-    const isGround = band.position.y <= GROUND_Y + 0.01;
-    const damping = isGround ? 0.80 : 0.992; // ถ้าอยู่บนพื้นจะหน่วงความเร็วเร็วขึ้น ไม่ไถลเป็นน้ำแข็ง
+    // แรงเสียดทานมหาศาลบนพื้น (High Rubber Friction)
+    const isGround = band.position.y <= GROUND_Y + 0.005;
+    const damping = isGround ? 0.12 : 0.95; // ถ้าแตะพื้น หยุดแทบทันที
     
     v.x *= Math.pow(damping, dt * 60);
     v.z *= Math.pow(damping, dt * 60);
@@ -540,15 +537,16 @@ function updatePhysics(dt){
   const verticalA = Math.abs(a.userData.vy);
   const verticalB = Math.abs(b.userData.vy);
 
+  // เงื่อนไขการหยุดนิ่งที่สอดคล้องกับยางจริง
   const aStopped =
     a.position.y<=GROUND_Y+0.001 &&
-    speedA<0.18 &&
-    verticalA<0.25;
+    speedA<0.05 &&
+    verticalA<0.1;
 
   const bStopped =
     b.position.y<=GROUND_Y+0.001 &&
-    speedB<0.18 &&
-    verticalB<0.25;
+    speedB<0.05 &&
+    verticalB<0.1;
 
   if(aStopped && bStopped){
     a.position.y=GROUND_Y;
@@ -562,7 +560,7 @@ function updatePhysics(dt){
     finishTurn();
   }
 
-  if(flightTime>12){
+  if(flightTime>8){
     a.userData.velocity.set(0,0,0);
     b.userData.velocity.set(0,0,0);
     a.userData.vy=0;
@@ -590,7 +588,7 @@ function finishTurn(){
   }
 
   phase='switching';
-  $('status').textContent='หนังยางหยุดแล้ว กำลังเปลี่ยนผู้เล่น...';
+  $('status').textContent='กำลังเปลี่ยนผู้เล่น...';
 
   setTimeout(()=>{
     if(phase!=='switching') return;
@@ -610,13 +608,13 @@ function finishTurn(){
     $('aimHint').textContent='ลากหน้าจอเพื่อหมุนกล้องเล็ง / ขึ้น-ลงปรับมุมยิง';
     $('shootBtn').disabled=false;
     updatePowerUI();
-  },450);
+  },400);
 }
 
 function endGame(winner){
   phase='ended';
   $('winnerText').textContent=
-    `ผู้เล่น ${winner+1} ชนะ! หนังยางทับอีกฝ่ายหลังตกลงบนกระดาน`;
+    `ผู้เล่น ${winner+1} ชนะ! หนังยางทับอีกฝ่ายสำเร็จ`;
   $('resultScreen').classList.remove('hidden');
 }
 
