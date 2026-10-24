@@ -40,7 +40,7 @@ button:disabled{opacity:.5}
     <p>
       ผู้เล่นละ 1 วง สลับตากันเล่น<br>
       ลากหน้าจอหมุนกล้อง ซ้าย-ขวาเพื่อเล็ง<br>
-      <b>ลากกล้องขึ้น-ลง เพื่อปรับมุมยิงสูงหรือต่ำ</b><br>
+      <b>ลากกล้องขึ้น-ลง เพื่อปรับมุมยิงโด่งข้ามหัว</b><br>
       <b>ยิ่งเป่าลมใส่ไมค์แรง แรงยิงยิ่งพุ่งไกล!</b><br>
       หยุดเป่าเพื่อยิง หรือใช้ปุ่มยิงแทนไมค์
     </p>
@@ -364,10 +364,10 @@ function shoot(){
   const speed = 2.5 + finalPower * 11.0;
 
   const pitchNorm = (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH);
-  const elevation = THREE.MathUtils.lerp(0.38, 0.02, pitchNorm);
+  const elevation = THREE.MathUtils.lerp(0.55, 0.02, pitchNorm);
 
   const horizontalSpeed = speed * Math.cos(elevation);
-  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 1.8;
+  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 2.2;
 
   shotBand = activeBand;
   targetBand = bands.find(b=>b!==shotBand);
@@ -457,27 +457,29 @@ function collideBands(){
   const a = shotBand;
   const b = targetBand;
 
-  const dx = b.position.x-a.position.x;
-  const dz = b.position.z-a.position.z;
-  const dist = Math.hypot(dx,dz);
+  // ใช้ระยะห่างแบบ 3D ทรงกลมจริง ๆ (Sphere Distance) ป้องกันปัญหาทรงกระบอกสูง
+  const dist3D = a.position.distanceTo(b.position);
+  const collisionThreshold = RING_R * 1.8; // ประมาณ 0.77 (ระยะสัมผัส 3D)
 
-  if(dist > 0.78) return;
+  if(dist3D > collisionThreshold) return;
 
   impactHandled = true;
   a.userData.hadImpact = true;
   b.userData.hadImpact = true;
 
+  const dx = b.position.x - a.position.x;
+  const dz = b.position.z - a.position.z;
   let nx = dx;
   let nz = dz;
 
-  if(dist < 0.001){
+  const len = Math.hypot(nx,nz);
+  if(len > 0.001){
+    nx /= len;
+    nz /= len;
+  } else {
     nx = 0;
     nz = 1;
   }
-
-  const len = Math.hypot(nx,nz);
-  nx /= len;
-  nz /= len;
 
   const va = a.userData.velocity;
   const vb = b.userData.velocity;
@@ -576,7 +578,6 @@ function updatePhysics(dt){
     a.position.y=GROUND_Y;
     b.position.y=GROUND_Y;
 
-    // จัดรูปให้หนังยางกลับมานอนราบปกติเมื่อหยุดนิ่ง เพื่อไม่ให้จมหรือทะลุพื้นบอร์ด
     a.rotation.set(Math.PI/2, 0, 0);
     b.rotation.set(Math.PI/2, 0, 0);
 
