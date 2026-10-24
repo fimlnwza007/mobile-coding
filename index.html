@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -40,10 +39,10 @@ button:disabled{opacity:.5}
     <h2>🐸 เป่ากบ 3D</h2>
     <p>
       ผู้เล่นละ 1 วง สลับตากันเล่น<br>
-      ลากหน้าจอเพื่อหมุนกล้องและเล็ง<br>
+      ลากหน้าจอหมุนกล้อง ซ้าย-ขวาเพื่อเล็ง<br>
+      <b>ลากกล้องขึ้น-ลง เพื่อปรับมุมยิงสูงหรือต่ำ</b><br>
       เป่าไมค์ค้างเพื่อสะสมแรง แล้วหยุดเป่าเพื่อยิง<br>
-      หรือใช้ปุ่มยิงแทนไมค์<br><br>
-      กล้องหมุนดูสนามได้ระหว่างหนังยางพุ่ง โดยไม่ติดตามหนังยาง
+      หรือใช้ปุ่มยิงแทนไมค์
     </p>
     <button class="primary" id="startBtn">เริ่มเล่น</button>
   </div>
@@ -80,7 +79,7 @@ button:disabled{opacity:.5}
       </div>
       <div id="meter"><div id="bar"></div></div>
       <div id="powerText">แรงยิง: 0%</div>
-      <div id="aimHint">ลากหน้าจอเพื่อหมุนกล้องเล็ง</div>
+      <div id="aimHint">ลากหน้าจอเพื่อเล็ง / ขึ้น-ลงปรับมุมยิง</div>
     </div>
   </div>
 </div>
@@ -275,8 +274,6 @@ function updateAimCamera(){
 }
 
 function updateFlightCamera(){
-  // cameraAnchor remains fixed at the firing position.
-  // Camera can rotate around it but never follows the moving ring.
   camera.position.copy(getCameraPosition(cameraAnchor));
 
   const forward = forwardFromYaw();
@@ -315,7 +312,7 @@ function updateAimLine(){
 }
 
 // ==================================================
-// CAMERA INPUT: DRAG TO ROTATE AT ANY TIME
+// CAMERA INPUT: DRAG TO ROTATE & CONTROL ELEVATION
 // ==================================================
 
 renderer.domElement.addEventListener('pointerdown',e=>{
@@ -357,34 +354,41 @@ renderer.domElement.addEventListener('pointercancel',()=>{
 });
 
 // ==================================================
-// SHOOT
+// SHOOT (CONTROLLED BY CAMERA PITCH)
 // ==================================================
 
 function shoot(){
   if(!gameStarted || phase!=='aim' || !activeBand) return;
 
   const direction = forwardFromYaw();
-  const finalPower = Math.max(0.2,power);
-  const speed = 3.2+finalPower*8.5;
+  const finalPower = Math.max(0.2, power);
+  const speed = 3.0 + finalPower * 7.5;
+
+  // ควบคุมมุมยิง (Elevation) ตามมุมก้มเงยของกล้อง (Pitch)
+  // เมื่อกล้องเงยขึ้น (pitch น้อย) -> ยิงโด่ง (มุมสูง)
+  // เมื่อกล้องก้มลง (pitch มาก) -> ยิงเลียด (มุมต่ำ)
+  const pitchNorm = (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH);
+  const elevation = THREE.MathUtils.lerp(0.55, 0.05, pitchNorm);
+
+  const horizontalSpeed = speed * Math.cos(elevation);
+  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 2.0;
 
   shotBand = activeBand;
   targetBand = bands.find(b=>b!==shotBand);
 
   shotBand.userData.velocity.set(
-    direction.x*speed,
+    direction.x * horizontalSpeed,
     0,
-    direction.z*speed
+    direction.z * horizontalSpeed
   );
 
-  // Initial upward impulse creates an arc.
-  shotBand.userData.vy = 2.0+finalPower*2.5;
+  shotBand.userData.vy = verticalSpeed;
   shotBand.userData.moving = true;
   shotBand.userData.hadImpact = false;
 
   targetBand.userData.moving = false;
   targetBand.userData.vy = targetBand.userData.vy || 0;
 
-  // Freeze the camera's orbit center at the launch point.
   cameraAnchor.copy(shotBand.position);
   impactHandled = false;
   shotLanded = false;
@@ -400,7 +404,7 @@ function shoot(){
 }
 
 // ==================================================
-// IMPACT / RUBBER BAND PHYSICS
+// IMPACT / RUBBER BAND PHYSICS (REDUCED BOUNCE & SLIP)
 // ==================================================
 
 function bounceFromEdge(b){
@@ -408,21 +412,22 @@ function bounceFromEdge(b){
   const maxX = BOARD_W/2-RING_R-0.2;
   const maxZ = BOARD_D/2-RING_R-0.2;
 
+  // ลดแรงสะท้อนจากขอบ (Restitution ลดลงเหลือ 0.35)
   if(b.position.x < -maxX){
-    b.position.x=-maxX;
-    v.x=Math.abs(v.x)*0.55;
+    b.position.x = -maxX;
+    v.x = Math.abs(v.x) * 0.35;
   }
   if(b.position.x > maxX){
-    b.position.x=maxX;
-    v.x=-Math.abs(v.x)*0.55;
+    b.position.x = maxX;
+    v.x = -Math.abs(v.x) * 0.35;
   }
   if(b.position.z < -maxZ){
-    b.position.z=-maxZ;
-    v.z=Math.abs(v.z)*0.55;
+    b.position.z = -maxZ;
+    v.z = Math.abs(v.z) * 0.35;
   }
   if(b.position.z > maxZ){
-    b.position.z=maxZ;
-    v.z=-Math.abs(v.z)*0.55;
+    b.position.z = maxZ;
+    v.z = -Math.abs(v.z) * 0.35;
   }
 }
 
@@ -433,8 +438,9 @@ function updateVertical(b,dt){
   if(b.position.y <= GROUND_Y){
     b.position.y = GROUND_Y;
 
-    if(b.userData.vy < -0.8){
-      b.userData.vy = -b.userData.vy*0.24;
+    // ลดการเด้งดúngเมื่อตกถึงพื้น (Restitution ลดลงเหลือ 0.15)
+    if(b.userData.vy < -0.5){
+      b.userData.vy = -b.userData.vy * 0.15;
     }else{
       b.userData.vy = 0;
     }
@@ -451,7 +457,6 @@ function collideBands(){
   const dz = b.position.z-a.position.z;
   const dist = Math.hypot(dx,dz);
 
-  // Contact between the two rubber bands.
   if(dist > 0.78) return;
 
   impactHandled = true;
@@ -473,21 +478,19 @@ function collideBands(){
   const va = a.userData.velocity;
   const vb = b.userData.velocity;
 
-  // Impulse transfers momentum to the other rubber band.
-  const incoming = Math.max(2,Math.hypot(va.x,va.z));
-  const push = Math.min(6,incoming*0.62);
+  // ลดแรงกระแทกปะทะระหว่างวง (ลดความรุนแรงและเด้งเว่อร์)
+  const incoming = Math.max(1, Math.hypot(va.x, va.z));
+  const push = Math.min(4, incoming * 0.45);
 
   vb.x += nx*push;
   vb.z += nz*push;
 
-  // Target band jumps from the impact.
-  b.userData.vy = Math.max(b.userData.vy,1.8+push*0.22);
+  b.userData.vy = Math.max(b.userData.vy, 1.0 + push * 0.15);
   b.userData.moving = true;
 
-  // The shot band loses some speed and can bounce away.
-  va.x *= -0.18;
-  va.z *= -0.18;
-  a.userData.vy = Math.max(a.userData.vy,1.1);
+  va.x *= -0.1;
+  va.z *= -0.1;
+  a.userData.vy = Math.max(a.userData.vy, 0.5);
   
   $('status').textContent = 'ปะทะ! หนังยางกระเด็นแล้ว';
 }
@@ -500,21 +503,22 @@ function updatePhysics(dt){
   const a = shotBand;
   const b = targetBand;
 
-  // Move both bands horizontally.
   for(const band of [a,b]){
     const v = band.userData.velocity;
 
     band.position.x += v.x*dt;
     band.position.z += v.z*dt;
 
-    v.x *= Math.pow(0.992,dt*60);
-    v.z *= Math.pow(0.992,dt*60);
+    // เพิ่มแรงเสียดทานพื้น (Ground Friction) เพื่อแก้ปัญหาพื้นลื่นเกินไป
+    const isGround = band.position.y <= GROUND_Y + 0.01;
+    const damping = isGround ? 0.80 : 0.992; // ถ้าอยู่บนพื้นจะหน่วงความเร็วเร็วขึ้น ไม่ไถลเป็นน้ำแข็ง
+    
+    v.x *= Math.pow(damping, dt * 60);
+    v.z *= Math.pow(damping, dt * 60);
 
     bounceFromEdge(band);
   }
 
-  // Only the launched band initially rises.
-  // The other band gets vertical movement if hit.
   if(a.position.y>GROUND_Y || a.userData.vy!==0){
     updateVertical(a,dt);
   }
@@ -525,7 +529,6 @@ function updatePhysics(dt){
 
   collideBands();
 
-  // Keep halos attached to each band.
   for(const band of bands){
     band.userData.halo.position.x=band.position.x;
     band.userData.halo.position.z=band.position.z;
@@ -539,13 +542,13 @@ function updatePhysics(dt){
 
   const aStopped =
     a.position.y<=GROUND_Y+0.001 &&
-    speedA<0.22 &&
-    verticalA<0.35;
+    speedA<0.18 &&
+    verticalA<0.25;
 
   const bStopped =
     b.position.y<=GROUND_Y+0.001 &&
-    speedB<0.22 &&
-    verticalB<0.35;
+    speedB<0.18 &&
+    verticalB<0.25;
 
   if(aStopped && bStopped){
     a.position.y=GROUND_Y;
@@ -559,7 +562,6 @@ function updatePhysics(dt){
     finishTurn();
   }
 
-  // Safety: prevent a perpetual turn if the rings keep bouncing.
   if(flightTime>12){
     a.userData.velocity.set(0,0,0);
     b.userData.velocity.set(0,0,0);
@@ -578,7 +580,6 @@ function updatePhysics(dt){
 function finishTurn(){
   if(phase!=='flying') return;
 
-  // Determine overlap only after the rings have settled.
   const dx = shotBand.position.x-targetBand.position.x;
   const dz = shotBand.position.z-targetBand.position.z;
   const dist = Math.hypot(dx,dz);
@@ -600,14 +601,13 @@ function finishTurn(){
     power=0;
     phase='aim';
 
-    // Camera moves to the next player's ring only now.
     yaw = current===0 ? Math.PI : 0;
     pitch=0.48;
     updateAimCamera();
 
     $('turn').textContent=`ตาของผู้เล่น ${current+1}`;
     $('status').textContent=`เล็งหนังยางของผู้เล่น ${current+1}`;
-    $('aimHint').textContent='ลากหน้าจอเพื่อหมุนกล้องเล็ง';
+    $('aimHint').textContent='ลากหน้าจอเพื่อหมุนกล้องเล็ง / ขึ้น-ลงปรับมุมยิง';
     $('shootBtn').disabled=false;
     updatePowerUI();
   },450);
@@ -699,7 +699,6 @@ function updateMic(dt){
 
   updatePowerUI();
 
-  // Stop blowing to launch the rubber band.
   if(wasBlowing && !blowing && power>0.08){
     shoot();
   }
@@ -723,7 +722,6 @@ function resetGame(){
 
   bands.length=0;
 
-  // Exactly two rubber bands.
   createBand(0,0,3.1);
   createBand(1,0,-3.1);
 
@@ -739,7 +737,7 @@ function resetGame(){
   $('shootBtn').disabled=false;
   $('turn').textContent='ตาของผู้เล่น 1';
   $('status').textContent='เล็งหนังยางของผู้เล่น 1';
-  $('aimHint').textContent='ลากหน้าจอเพื่อหมุนกล้องเล็ง';
+  $('aimHint').textContent='ลากหน้าจอเพื่อหมุนกล้องเล็ง / ขึ้น-ลงปรับมุมยิง';
 
   yaw=Math.PI;
   pitch=0.48;
@@ -779,7 +777,6 @@ function animate(now){
     updateAimCamera();
     updateAimLine();
   }else if(phase==='flying'){
-    // Fixed launch anchor; camera never follows the flying band.
     updateFlightCamera();
   }
 
