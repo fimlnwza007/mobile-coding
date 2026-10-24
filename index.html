@@ -22,7 +22,7 @@ button{border:0;border-radius:10px;padding:11px 13px;font-size:13px;font-weight:
 button.primary{background:#ffc15d}
 button:disabled{opacity:.5}
 #meter{height:9px;background:#36453a;border-radius:10px;margin-top:10px;overflow:hidden}
-#bar{width:0%;height:100%;background:#72ed9a}
+#bar{width:0%;height:100%;background:#72ed9a;transition:width 0.05s ease-out}
 #powerText,#aimHint{font-size:12px;margin-top:6px}
 #aimHint{text-align:center;color:#e4d4a5}
 .overlay{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
@@ -41,8 +41,8 @@ button:disabled{opacity:.5}
       ผู้เล่นละ 1 วง สลับตากันเล่น<br>
       ลากหน้าจอหมุนกล้อง ซ้าย-ขวาเพื่อเล็ง<br>
       <b>ลากกล้องขึ้น-ลง เพื่อปรับมุมยิงสูงหรือต่ำ</b><br>
-      เป่าไมค์ค้างเพื่อสะสมแรง แล้วหยุดเป่าเพื่อยิง<br>
-      หรือใช้ปุ่มยิงแทนไมค์
+      <b>ยิ่งเป่าลมใส่ไมค์แรง แรงยิงยิ่งสูง!</b><br>
+      หยุดเป่าเพื่อยิง หรือใช้ปุ่มยิงแทนไมค์
     </p>
     <button class="primary" id="startBtn">เริ่มเล่น</button>
   </div>
@@ -179,7 +179,7 @@ function createBand(owner,x,z){
     new THREE.TorusGeometry(RING_R,0.09,14,48),
     new THREE.MeshStandardMaterial({
       color,
-      roughness:0.8, // ยางมีความขรุขระ ไม่เงา
+      roughness:0.8,
       emissive:color,
       emissiveIntensity:0.08
     })
@@ -351,24 +351,23 @@ renderer.domElement.addEventListener('pointercancel',()=>{
 });
 
 // ==================================================
-// SHOOT (REALISTIC RUBBER BAND PHYSICS)
+// SHOOT (POWER BASED ON BLOW INTENSITY)
 // ==================================================
 
 function shoot(){
   if(!gameStarted || phase!=='aim' || !activeBand) return;
 
   const direction = forwardFromYaw();
-  const finalPower = Math.max(0.15, power);
+  const finalPower = Math.max(0.12, power);
 
-  // ปรับความเร็วตามการเป่าจริง (ไม่พุ่งไกลเกินไป)
-  const speed = 2.0 + finalPower * 5.0;
+  // ความเร็วแนวนอนและแนวตั้งสัมพันธ์ตามแรงเป่าจริง
+  const speed = 1.8 + finalPower * 6.5;
 
-  // ปรับการส่งแนวดิ่งตาม Pitch ของกล้อง
   const pitchNorm = (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH);
   const elevation = THREE.MathUtils.lerp(0.35, 0.02, pitchNorm);
 
   const horizontalSpeed = speed * Math.cos(elevation);
-  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 1.2;
+  const verticalSpeed = speed * Math.sin(elevation) + finalPower * 1.5;
 
   shotBand = activeBand;
   targetBand = bands.find(b=>b!==shotBand);
@@ -408,7 +407,6 @@ function bounceFromEdge(b){
   const maxX = BOARD_W/2-RING_R-0.2;
   const maxZ = BOARD_D/2-RING_R-0.2;
 
-  // เมื่อชนขอบกระดาน ยางจะสูญเสียพลังงานเกือบทั้งหมด (ไม่ดีดสะท้อน)
   if(b.position.x < -maxX){
     b.position.x = -maxX;
     v.x = Math.abs(v.x) * 0.1;
@@ -428,16 +426,14 @@ function bounceFromEdge(b){
 }
 
 function updateVertical(b,dt){
-  // เพิ่มแรงโน้มถ่วงให้ยางตกเร็วขึ้น หนักแน่นขึ้น
   b.userData.vy -= 18.0 * dt;
   b.position.y += b.userData.vy * dt;
 
   if(b.position.y <= GROUND_Y){
     b.position.y = GROUND_Y;
 
-    // หนังยางไม่มีความเด้ง (Inelastic Bounce) แป๊กนิ่งทันที
     if(b.userData.vy < -0.8){
-      b.userData.vy = -b.userData.vy * 0.05; // เด้งแค่ 5% เท่านั้น
+      b.userData.vy = -b.userData.vy * 0.05;
     }else{
       b.userData.vy = 0;
     }
@@ -475,7 +471,6 @@ function collideBands(){
   const va = a.userData.velocity;
   const vb = b.userData.velocity;
 
-  // การปะทะกันของยางวง (แรงส่งต่ำ ไม่ปลิวสะบัด)
   const incoming = Math.max(0.5, Math.hypot(va.x, va.z));
   const push = Math.min(2.5, incoming * 0.35);
 
@@ -506,9 +501,8 @@ function updatePhysics(dt){
     band.position.x += v.x*dt;
     band.position.z += v.z*dt;
 
-    // แรงเสียดทานมหาศาลบนพื้น (High Rubber Friction)
     const isGround = band.position.y <= GROUND_Y + 0.005;
-    const damping = isGround ? 0.12 : 0.95; // ถ้าแตะพื้น หยุดแทบทันที
+    const damping = isGround ? 0.12 : 0.95;
     
     v.x *= Math.pow(damping, dt * 60);
     v.z *= Math.pow(damping, dt * 60);
@@ -537,7 +531,6 @@ function updatePhysics(dt){
   const verticalA = Math.abs(a.userData.vy);
   const verticalB = Math.abs(b.userData.vy);
 
-  // เงื่อนไขการหยุดนิ่งที่สอดคล้องกับยางจริง
   const aStopped =
     a.position.y<=GROUND_Y+0.001 &&
     speedA<0.05 &&
@@ -619,7 +612,7 @@ function endGame(winner){
 }
 
 // ==================================================
-// MICROPHONE
+// MICROPHONE DETECTOR (DYNAMIC VOLUME SPEED)
 // ==================================================
 
 let audioContext=null;
@@ -641,14 +634,14 @@ $('micBtn').addEventListener('click',async()=>{
 
     const source=audioContext.createMediaStreamSource(micStream);
     analyser=audioContext.createAnalyser();
-    analyser.fftSize=512;
-    analyser.smoothingTimeConstant=0.5;
+    analyser.fftSize=256;
+    analyser.smoothingTimeConstant=0.2;
     source.connect(analyser);
 
     micBuffer=new Uint8Array(analyser.fftSize);
     micEnabled=true;
     $('micBtn').textContent='🔇 ปิดไมค์';
-    $('status').textContent='เป่าค้างเพื่อชาร์จ หยุดเป่าเพื่อยิง';
+    $('status').textContent='เป่าใส่ไมค์แรงขึ้น = เพิ่มแรงยิง!';
   }catch(err){
     console.error(err);
     alert('เปิดไมค์ไม่ได้ กรุณาอนุญาตไมโครโฟนและใช้ localhost หรือ HTTPS');
@@ -675,7 +668,7 @@ function updatePowerUI(){
 
 function updateMic(dt){
   if(!micEnabled || !analyser || phase!=='aim'){
-    micLevel*=0.9;
+    micLevel*=0.8;
     return;
   }
 
@@ -688,16 +681,20 @@ function updateMic(dt){
   }
 
   const rms=Math.sqrt(sum/micBuffer.length);
-  micLevel=Math.max(0,(rms-0.012)*5);
-  const blowing=micLevel>0.12;
+  // คำนวณความดังจริงจากการเป่า (RMS Volume)
+  micLevel=Math.max(0, (rms - 0.015) * 6.0);
+  const blowing = micLevel > 0.08;
 
   if(blowing){
-    power=Math.min(1,power+dt*(0.35+micLevel));
+    // ความเร็วในการสะสมแรงเพิ่มตามความดังของการเป่า ยิ่งดัง ยิ่งพุ่งเต็มเร็ว!
+    const blowIntensity = Math.min(2.5, micLevel * 2.2);
+    power = Math.min(1.0, power + dt * blowIntensity);
   }
 
   updatePowerUI();
 
-  if(wasBlowing && !blowing && power>0.08){
+  // เมื่อหยุดเป่า จะสั่งยิงทันที
+  if(wasBlowing && !blowing && power > 0.05){
     shoot();
   }
 
