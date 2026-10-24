@@ -167,7 +167,7 @@ addEdge(0.18,0.18,10,-4.05,-0.05,0);
 addEdge(0.18,0.18,10,4.05,-0.05,0);
 
 // ==================================================
-// RUBBER BANDS (FREE TUMBLING)
+// RUBBER BANDS
 // ==================================================
 
 const bands = [];
@@ -185,14 +185,13 @@ function createBand(owner,x,z){
     })
   );
 
-  // ตั้งต้นให้นอนราบระนาบพื้น
   ring.rotation.x = Math.PI/2;
   ring.position.set(x,GROUND_Y,z);
   ring.castShadow = true;
 
   ring.userData.owner = owner;
   ring.userData.velocity = new THREE.Vector3();
-  ring.userData.angularVelocity = new THREE.Vector3(); // ความเร็วในการกลิ้ง/หมุนอิสระ
+  ring.userData.angularVelocity = new THREE.Vector3();
   ring.userData.vy = 0;
   ring.userData.moving = false;
   ring.userData.hadImpact = false;
@@ -353,7 +352,7 @@ renderer.domElement.addEventListener('pointercancel',()=>{
 });
 
 // ==================================================
-// SHOOT (FULL POWER & FREE TUMBLING ROTATION)
+// SHOOT
 // ==================================================
 
 function shoot(){
@@ -362,7 +361,6 @@ function shoot(){
   const direction = forwardFromYaw();
   const finalPower = Math.max(0.15, power);
 
-  // ปรับความเร็วสูงสุดให้พุ่งไกลเต็มสนามตามแรงเป่าจริง
   const speed = 2.5 + finalPower * 11.0;
 
   const pitchNorm = (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH);
@@ -384,7 +382,6 @@ function shoot(){
   shotBand.userData.moving = true;
   shotBand.userData.hadImpact = false;
 
-  // เพิ่มการหมุนตีลังกาและกลิ้งอิสระ (Free Tumbling Angular Velocity)
   shotBand.userData.angularVelocity.set(
     (Math.random() - 0.5) * 12,
     (Math.random() - 0.5) * 12,
@@ -408,7 +405,7 @@ function shoot(){
 }
 
 // ==================================================
-// PHYSICS: BOUNCE, FRICTION & FREE TUMBLING ROTATION
+// PHYSICS
 // ==================================================
 
 function bounceFromEdge(b){
@@ -520,7 +517,6 @@ function updatePhysics(dt){
     band.position.x += v.x * dt;
     band.position.z += v.z * dt;
 
-    // อัปเดตการหมุนและกลิ้งอิสระ 3D (Free Tumbling)
     band.rotation.x += av.x * dt;
     band.rotation.y += av.y * dt;
     band.rotation.z += av.z * dt;
@@ -528,18 +524,16 @@ function updatePhysics(dt){
     const isGround = band.position.y <= GROUND_Y + 0.005;
 
     if(isGround){
-      // แรงเสียดทานบนพื้นแบบ Linear Deceleration ให้หยุดสมจริงตามระยะทาง
       const currentSpeed = v.length();
       if(currentSpeed > 0.02){
         const frictionRate = 4.5;
         v.addScaledVector(v.clone().normalize(), -frictionRate * dt);
-        av.multiplyScalar(0.92); // ลดความเร็วการหมุนลงเรื่อยๆ เมื่อเสียดทานกับพื้น
+        av.multiplyScalar(0.92);
       } else {
         v.set(0,0,0);
         av.set(0,0,0);
       }
     } else {
-      // แรงต้านอากาศขณะลอยตัว
       v.multiplyScalar(Math.pow(0.98, dt * 60));
       av.multiplyScalar(Math.pow(0.99, dt * 60));
     }
@@ -582,9 +576,15 @@ function updatePhysics(dt){
     a.position.y=GROUND_Y;
     b.position.y=GROUND_Y;
 
+    // จัดรูปให้หนังยางกลับมานอนราบปกติเมื่อหยุดนิ่ง เพื่อไม่ให้จมหรือทะลุพื้นบอร์ด
+    a.rotation.set(Math.PI/2, 0, 0);
+    b.rotation.set(Math.PI/2, 0, 0);
+
     a.userData.velocity.set(0,0,0);
+    a.userData.angularVelocity.set(0,0,0);
+    b.userData.velocity.set(0,0,0);
     b.userData.angularVelocity.set(0,0,0);
-    b.userData.vy=0;
+    a.userData.vy=0;
     b.userData.vy=0;
 
     finishTurn();
@@ -599,6 +599,8 @@ function updatePhysics(dt){
     b.userData.vy=0;
     a.position.y=GROUND_Y;
     b.position.y=GROUND_Y;
+    a.rotation.set(Math.PI/2, 0, 0);
+    b.rotation.set(Math.PI/2, 0, 0);
     finishTurn();
   }
 }
