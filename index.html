@@ -452,34 +452,39 @@ function updateVertical(b,dt){
 }
 
 function collideBands(){
-  if(impactHandled || !shotBand || !targetBand) return;
+  if(phase !== 'flying' || !shotBand || !targetBand) return;
 
   const a = shotBand;
   const b = targetBand;
 
-  // ใช้ระยะห่างแบบ 3D ทรงกลมจริง ๆ (Sphere Distance) ป้องกันปัญหาทรงกระบอกสูง
   const dist3D = a.position.distanceTo(b.position);
-  const collisionThreshold = RING_R * 1.8; // ประมาณ 0.77 (ระยะสัมผัส 3D)
+  const collisionThreshold = RING_R * 1.8; // ~0.77
 
   if(dist3D > collisionThreshold) return;
 
-  impactHandled = true;
-  a.userData.hadImpact = true;
-  b.userData.hadImpact = true;
-
+  // เพิ่มระบบป้องกันการซ้อนทับ (Positional Correction) ผลักแยกออกจากกันทันที
+  const overlap = collisionThreshold - dist3D;
   const dx = b.position.x - a.position.x;
   const dz = b.position.z - a.position.z;
-  let nx = dx;
-  let nz = dz;
-
-  const len = Math.hypot(nx,nz);
+  let nx = dx, nz = dz;
+  const len = Math.hypot(nx, nz);
   if(len > 0.001){
     nx /= len;
     nz /= len;
   } else {
-    nx = 0;
-    nz = 1;
+    nx = 1; nz = 0;
   }
+
+  // ผลักตำแหน่งออกจากกันเพื่อไม่ให้โมเดลทะลุซ้อนกัน
+  a.position.x -= nx * overlap * 0.5;
+  a.position.z -= nz * overlap * 0.5;
+  b.position.x += nx * overlap * 0.5;
+  b.position.z += nz * overlap * 0.5;
+
+  if(impactHandled) return;
+  impactHandled = true;
+  a.userData.hadImpact = true;
+  b.userData.hadImpact = true;
 
   const va = a.userData.velocity;
   const vb = b.userData.velocity;
